@@ -1,0 +1,11 @@
+{
+  "colorGroups": [
+    { "query": "path:bugs \"Status: not-fixed\"", "color": { "a": 1, "rgb": 16711680 } },
+    { "query": "path:bugs \"Status: fixed\"", "color": { "a": 1, "rgb": 8323072 } },
+    { "query": "path:enhancements \"Status: planned\"", "color": { "a": 1, "rgb": 16753920 } },
+    { "query": "path:enhancements \"Status: done\"", "color": { "a": 1, "rgb": 8344064 } },
+    { "query": "path:features \"Status: shipped\"", "color": { "a": 1, "rgb": 8388736 } },
+    { "query": "path:features \"Status: deprecated\"", "color": { "a": 1, "rgb": 4194368 } },
+    { "query": "path:pages", "color": { "a": 1, "rgb": 255 } }
+  ]
+}
