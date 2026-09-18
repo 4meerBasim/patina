@@ -6,5 +6,5 @@ Summary: Design screen 1a: welcome copy, the Language · Numerals picker (Englis
 ## Related
 - Connects to: [[Style Chooser]], [[Editorial Account Linking]], [[Editorial Home]]
 - Features: [[Arabic RTL Home]], [[Style Switching]], [[Design Tokens and Fonts]]
-- Bugs: none known
+- Bugs: [[Link Sheet Close Leaves Onboarding In Stack]]
 - Enhancements: [[Native Style for Remaining Screens]]

@@ -10,4 +10,4 @@ Summary: Switching the Editorial locale to Arabic renders Home as a right-to-lef
 - Page: [[Editorial Home]], [[Editorial Onboarding]], [[Editorial Settings]]
 - Features: [[Editorial Tab Bar]], [[Design Tokens and Fonts]]
 - Enhancements: [[Arabic Holding and Add Holding]]
-- Bugs: none known
+- Bugs: [[Arabic Hero Currency Jumps On Android]]

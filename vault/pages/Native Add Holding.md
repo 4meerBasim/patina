@@ -6,5 +6,5 @@ Summary: Design screen 2d: a transparent-modal form sheet with an asset-type con
 ## Related
 - Connects to: [[Native Home]], [[Native Portfolio]], [[Native Goals]]
 - Features: [[Add Holding Live Preview]], [[Period and Segmented Selectors]], [[Design Tokens and Fonts]]
-- Bugs: none known
+- Bugs: [[Keyboard Covers Add Holding Fields]]
 - Enhancements: none

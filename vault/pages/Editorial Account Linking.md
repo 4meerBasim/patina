@@ -6,5 +6,5 @@ Summary: Design screen 1b: a sheet for linking brokerages, exchanges and banks w
 ## Related
 - Connects to: [[Editorial Onboarding]], [[Editorial Home]], [[Editorial Add Holding]]
 - Features: [[Account Search Filter]], [[Design Tokens and Fonts]]
-- Bugs: none known
+- Bugs: [[Link Sheet Close Leaves Onboarding In Stack]]
 - Enhancements: none

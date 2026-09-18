@@ -6,5 +6,5 @@ Summary: Launch screen that picks between the Editorial style (turn 1, 13 screen
 ## Related
 - Connects to: [[Editorial Onboarding]], [[Native Home]], [[Editorial Home]]
 - Features: [[Style Switching]], [[Design Tokens and Fonts]]
-- Bugs: none known
+- Bugs: [[Link Sheet Close Leaves Onboarding In Stack]]
 - Enhancements: none
