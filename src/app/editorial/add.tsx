@@ -1,0 +1,249 @@
+import { router } from 'expo-router';
+import { useState } from 'react';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import Animated, { Easing, SlideInDown } from 'react-native-reanimated';
+
+import { Caption } from '@/components/editorial/caption';
+import { Colors, Fonts } from '@/constants/theme';
+import { formatDollars, parseAmount } from '@/lib/amount';
+
+const NET_WORTH = 1284930.42;
+const DEFAULT_PRICE = 248.2;
+
+export default function AddHoldingScreen() {
+  const [quantity, setQuantity] = useState('50');
+  const [price, setPrice] = useState('');
+  const [isQuantityFocused, setIsQuantityFocused] = useState(true);
+  const [isPriceFocused, setIsPriceFocused] = useState(false);
+
+  const quantityValue = parseAmount(quantity) ?? 0;
+  const priceValue = parseAmount(price) ?? DEFAULT_PRICE;
+  const total = quantityValue * priceValue;
+  const weight = (total / NET_WORTH) * 100;
+
+  return (
+    <View style={styles.backdrop}>
+      <Animated.View
+        style={styles.sheet}
+        entering={SlideInDown.duration(400).easing(Easing.bezier(0.2, 0.8, 0.2, 1))}>
+        <KeyboardAvoidingView
+          style={styles.content}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={70}>
+          <Pressable style={styles.fill} accessible={false} onPress={Keyboard.dismiss}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              hitSlop={{ top: 24, bottom: 24, left: 24, right: 24 }}
+              style={styles.grabberHit}
+              onPress={() => router.back()}>
+              <View style={styles.grabber} />
+            </Pressable>
+
+            <Caption>New holding</Caption>
+
+            <View style={styles.sentence}>
+              <Text style={styles.sentenceText}>A </Text>
+              <View style={styles.fragment}>
+                <Text style={[styles.sentenceText, styles.fragmentText]}>stock</Text>
+              </View>
+              <Text style={styles.sentenceText}> — </Text>
+              <View style={styles.fragment}>
+                <Text style={[styles.sentenceText, styles.fragmentText]}>Apple, AAPL</Text>
+              </View>
+              <Text style={styles.sentenceText}> —</Text>
+            </View>
+
+            <Text style={styles.question}>How much?</Text>
+
+            <View style={styles.inputs}>
+              <View style={styles.inputColumn}>
+                <Caption>Quantity</Caption>
+                <TextInput
+                  accessibilityLabel="Quantity"
+                  style={[
+                    styles.field,
+                    isQuantityFocused ? styles.fieldFocused : styles.fieldBlurred,
+                  ]}
+                  value={quantity}
+                  onChangeText={setQuantity}
+                  onFocus={() => setIsQuantityFocused(true)}
+                  onBlur={() => setIsQuantityFocused(false)}
+                  autoFocus
+                  keyboardType="decimal-pad"
+                  cursorColor={Colors.brass}
+                  selectionColor={Colors.brass}
+                />
+              </View>
+              <View style={styles.inputColumn}>
+                <Caption>Price</Caption>
+                <TextInput
+                  accessibilityLabel="Price"
+                  style={[styles.field, isPriceFocused ? styles.fieldFocused : styles.fieldBlurred]}
+                  value={price}
+                  onChangeText={setPrice}
+                  onFocus={() => setIsPriceFocused(true)}
+                  onBlur={() => setIsPriceFocused(false)}
+                  placeholder="$248.20"
+                  placeholderTextColor={Colors.slate}
+                  keyboardType="decimal-pad"
+                  cursorColor={Colors.brass}
+                  selectionColor={Colors.brass}
+                />
+              </View>
+            </View>
+
+            <Text style={styles.live}>
+              That&apos;s <Text style={styles.liveTotal}>{formatDollars(total)}</Text> ·{' '}
+              {weight.toFixed(2)}% of net worth
+            </Text>
+
+            <View style={styles.spacer} />
+
+            <View style={styles.footer}>
+              <Text style={styles.step}>3 of 4 · acquired date next</Text>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.nextButton}
+                onPress={() => router.back()}>
+                <Text style={styles.nextLabel}>Next</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Animated.View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: Colors.ink,
+  },
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 70,
+    bottom: 0,
+    backgroundColor: Colors.surface2,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 14,
+  },
+  fill: {
+    flex: 1,
+  },
+  grabberHit: {
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  grabber: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.hairline,
+  },
+  sentence: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    marginTop: 12,
+  },
+  sentenceText: {
+    fontFamily: Fonts.newsreader24,
+    fontSize: 24,
+    lineHeight: 32,
+    color: Colors.ash,
+  },
+  fragment: {
+    height: 29,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.brass,
+  },
+  fragmentText: {
+    color: Colors.bone,
+  },
+  question: {
+    fontFamily: Fonts.newsreader24,
+    fontSize: 24,
+    lineHeight: 32,
+    color: Colors.bone,
+    marginTop: 28,
+  },
+  inputs: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 20,
+  },
+  inputColumn: {
+    flex: 1,
+  },
+  field: {
+    fontFamily: Fonts.newsreaderLight32,
+    fontSize: 32,
+    lineHeight: 40,
+    color: Colors.bone,
+    fontVariant: ['tabular-nums'],
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+  },
+  fieldFocused: {
+    borderBottomColor: Colors.brass,
+  },
+  fieldBlurred: {
+    borderBottomColor: Colors.hairline,
+  },
+  live: {
+    fontFamily: Fonts.manrope,
+    fontSize: 15,
+    lineHeight: 22,
+    color: Colors.ash,
+    fontVariant: ['tabular-nums'],
+    marginTop: 20,
+  },
+  liveTotal: {
+    color: Colors.bone,
+  },
+  spacer: {
+    flex: 1,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 12,
+  },
+  step: {
+    fontFamily: Fonts.manrope,
+    fontSize: 13,
+    color: Colors.slate,
+  },
+  nextButton: {
+    height: 48,
+    paddingHorizontal: 22,
+    backgroundColor: Colors.brass,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextLabel: {
+    fontFamily: Fonts.manropeSemiBold,
+    fontSize: 15,
+    color: Colors.ink,
+  },
+});
