@@ -6,21 +6,34 @@ import {
   type InstrumentSearchProvider,
 } from '@/data/providers/instrument-search-provider';
 import type { Settings } from '@/data/settings';
-import type { Transaction } from '@/data/types';
+import type { AllocationTargets, Transaction } from '@/data/types';
+import type { DividendMonth, YieldOnCost } from '@/lib/dividends';
+import type { FeeAnalysis } from '@/lib/fees';
+import type { HoldingPosition } from '@/lib/positions';
+import type { RebalanceHint } from '@/lib/rebalance';
+import type { Recap } from '@/lib/recap';
 
 import { useDataStore, type DataStore } from './data-store';
 import {
   selectAccountGroups,
   selectAllocation,
+  selectDividendCalendar,
+  selectDividendForecast,
+  selectFeeAnalysis,
   selectGoalProgress,
+  selectHoldingPositions,
   selectHoldingValues,
   selectNetWorth,
   selectOwnerGroups,
   selectPeriodDelta,
+  selectPortfolioMetrics,
+  selectRebalanceHints,
+  selectRecap,
   selectRecentActivity,
   selectTodayDelta,
   selectTopMovers,
   selectUnreadNotes,
+  selectYieldOnCost,
   type AccountGroup,
   type AllocationSlice,
   type Delta,
@@ -28,6 +41,7 @@ import {
   type HoldingValue,
   type NetWorth,
   type OwnerGroup,
+  type PortfolioMetrics,
   type TopMover,
 } from './selectors';
 
@@ -71,6 +85,12 @@ type Actions = Pick<
   | 'addNote'
   | 'markNoteRead'
   | 'deleteNote'
+  | 'regenerateInsights'
+  | 'setAllocationTargets'
+  | 'setExpenseRatio'
+  | 'exportAllData'
+  | 'importBackup'
+  | 'deleteAllData'
   | 'updateSettings'
 >;
 
@@ -95,6 +115,12 @@ export function useDataActions(): Actions {
       addNote: state.addNote,
       markNoteRead: state.markNoteRead,
       deleteNote: state.deleteNote,
+      regenerateInsights: state.regenerateInsights,
+      setAllocationTargets: state.setAllocationTargets,
+      setExpenseRatio: state.setExpenseRatio,
+      exportAllData: state.exportAllData,
+      importBackup: state.importBackup,
+      deleteAllData: state.deleteAllData,
       updateSettings: state.updateSettings,
     })),
   );
@@ -187,4 +213,82 @@ export function useLots(): DataStore['lots'] {
 export function useInstrumentSearchProvider(): InstrumentSearchProvider {
   const instruments = useInstruments();
   return useMemo(() => createInstrumentSearchProvider(instruments), [instruments]);
+}
+
+export function useHoldingMetrics(): HoldingPosition[] {
+  return useDataStore((state) =>
+    selectHoldingPositions(
+      state.holdings,
+      state.lots,
+      state.transactions,
+      state.priceQuotes,
+      state.valuations,
+      state.fxRates,
+      state.settings.baseCurrency,
+    ),
+  );
+}
+
+export function usePortfolioMetrics(): PortfolioMetrics {
+  return useDataStore((state) =>
+    selectPortfolioMetrics(
+      selectHoldingPositions(
+        state.holdings,
+        state.lots,
+        state.transactions,
+        state.priceQuotes,
+        state.valuations,
+        state.fxRates,
+        state.settings.baseCurrency,
+      ),
+    ),
+  );
+}
+
+export function useRecap(days: number): Recap {
+  return useDataStore((state) => selectRecap(state.snapshots, state.transactions, days));
+}
+
+export function useDividendCalendar(): DividendMonth[] {
+  return useDataStore((state) => selectDividendCalendar(state.transactions, TODAY));
+}
+
+export function useDividendForecast(): DividendMonth[] {
+  return useDataStore((state) => selectDividendForecast(state.transactions, TODAY));
+}
+
+export function useYieldOnCost(): YieldOnCost[] {
+  return useDataStore((state) => selectYieldOnCost(state.transactions, state.lots, TODAY));
+}
+
+export function useAllocationTargets(): AllocationTargets {
+  return useDataStore((state) => state.allocationTargets);
+}
+
+export function useRebalanceHints(): RebalanceHint[] {
+  return useDataStore((state) =>
+    selectRebalanceHints(
+      selectAllocation(state.snapshots),
+      state.allocationTargets,
+      selectNetWorth(state.snapshots).assets,
+    ),
+  );
+}
+
+export function useFeeAnalysis(): FeeAnalysis {
+  return useDataStore((state) =>
+    selectFeeAnalysis(
+      selectHoldingPositions(
+        state.holdings,
+        state.lots,
+        state.transactions,
+        state.priceQuotes,
+        state.valuations,
+        state.fxRates,
+        state.settings.baseCurrency,
+      ),
+      state.holdings,
+      state.instruments,
+    ),
+  );
 }

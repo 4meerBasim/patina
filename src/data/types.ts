@@ -39,6 +39,7 @@ export type Holding = {
   name: string | null;
   quantity: number;
   currency: CurrencyCode;
+  expenseRatio?: number | null;
 };
 
 export type HoldingWithInstrument = Holding & { instrument: Instrument | null };
@@ -63,6 +64,9 @@ export type Lot = {
   costPerUnit: number;
   acquiredAt: string;
   remainingQuantity: number;
+  // Native-currency units per 1 USD when the lot was acquired; lets positions
+  // separate FX gain from market gain. null when unknown (treated as current).
+  acquiredFxRate: number | null;
 };
 
 export type Valuation = {
@@ -122,6 +126,8 @@ export type PriceQuote = {
   price: number;
   asOf: string;
 };
+
+export type AllocationTargets = Record<AssetClass, number>;
 
 export const ASSET_CLASSES: AssetClass[] = ['stocks', 'crypto', 'property', 'cash', 'savings'];
 

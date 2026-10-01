@@ -1,6 +1,6 @@
 import type { Database } from './client';
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const createStatements = `
 CREATE TABLE accounts (
@@ -125,6 +125,12 @@ CREATE INDEX idx_valuations_holding ON valuations(holding_id);
 CREATE INDEX idx_valuations_date ON valuations(date);
 `;
 
+// v2 is additive only: new nullable columns, no rewrite of existing data.
+const v2Statements = `
+ALTER TABLE holdings ADD COLUMN expense_ratio REAL;
+ALTER TABLE lots ADD COLUMN acquired_fx_rate REAL;
+`;
+
 export async function migrate(db: Database): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   const current = row?.user_version ?? 0;
@@ -132,6 +138,9 @@ export async function migrate(db: Database): Promise<void> {
 
   if (current < 1) {
     await db.execAsync(createStatements);
+  }
+  if (current < 2) {
+    await db.execAsync(v2Statements);
   }
 
   await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);

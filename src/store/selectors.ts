@@ -1,10 +1,14 @@
 import type {
   Account,
+  AllocationTargets,
   AssetClass,
+  CurrencyCode,
+  FxRate,
   Goal,
   Holding,
   HoldingWithInstrument,
   Instrument,
+  Lot,
   Note,
   Ownership,
   PriceQuote,
@@ -13,7 +17,13 @@ import type {
   Valuation,
 } from '@/data/types';
 import { ASSET_CLASSES } from '@/data/types';
+import { computeDividendCalendar, computeDividendForecast, computeYieldOnCost } from '@/lib/dividends';
+import { computeFeeAnalysis, type FeeAnalysis } from '@/lib/fees';
+import { computePositions, type HoldingPosition } from '@/lib/positions';
+import { computeRebalance, type RebalanceHint } from '@/lib/rebalance';
+import { computeRecap, type Recap } from '@/lib/recap';
 import { holdingValue } from '@/lib/snapshots';
+import type { DividendMonth, YieldOnCost } from '@/lib/dividends';
 
 function memoize<Args extends readonly unknown[], Result>(
   fn: (...args: Args) => Result,
@@ -248,4 +258,120 @@ export const selectGoalProgress = memoizeKeyed(
       };
     }),
   (_goals, today) => today,
+);
+
+export type PortfolioMetrics = {
+  value: number;
+  costBasis: number;
+  unrealisedGain: number;
+  unrealisedPercent: number;
+  realisedGain: number;
+  marketGain: number;
+  currencyGain: number;
+};
+
+function labelForHolding(holding: Holding, instruments: Instrument[]): string {
+  if (holding.name) return holding.name;
+  const instrument = holding.instrumentId
+    ? instruments.find((item) => item.id === holding.instrumentId)
+    : null;
+  return instrument?.name ?? instrument?.symbol ?? holding.id;
+}
+
+export const selectHoldingPositions = memoize(
+  (
+    holdings: Holding[],
+    lots: Lot[],
+    transactions: Transaction[],
+    priceQuotes: PriceQuote[],
+    valuations: Valuation[],
+    fxRates: FxRate[],
+    baseCurrency: CurrencyCode,
+  ): HoldingPosition[] =>
+    computePositions({ holdings, lots, transactions, priceQuotes, valuations, fxRates, baseCurrency }),
+);
+
+export const selectPortfolioMetrics = memoize(
+  (positions: HoldingPosition[]): PortfolioMetrics => {
+    const totals = positions.reduce(
+      (acc, position) => {
+        acc.value += position.value;
+        acc.costBasis += position.costBasis ?? 0;
+        acc.unrealisedGain += position.unrealisedGain ?? 0;
+        acc.realisedGain += position.realisedGain;
+        acc.marketGain += position.marketGain ?? 0;
+        acc.currencyGain += position.currencyGain ?? 0;
+        return acc;
+      },
+      { value: 0, costBasis: 0, unrealisedGain: 0, realisedGain: 0, marketGain: 0, currencyGain: 0 },
+    );
+    const round = (value: number) => Math.round(value * 100) / 100;
+    return {
+      value: round(totals.value),
+      costBasis: round(totals.costBasis),
+      unrealisedGain: round(totals.unrealisedGain),
+      unrealisedPercent: totals.costBasis !== 0 ? (totals.unrealisedGain / totals.costBasis) * 100 : 0,
+      realisedGain: round(totals.realisedGain),
+      marketGain: round(totals.marketGain),
+      currencyGain: round(totals.currencyGain),
+    };
+  },
+);
+
+export const selectRecap = memoizeKeyed(
+  (snapshots: Snapshot[], transactions: Transaction[], days: number): Recap =>
+    computeRecap({ snapshots, transactions, days }),
+  (_snapshots, _transactions, days) => String(days),
+);
+
+export const selectDividendCalendar = memoizeKeyed(
+  (transactions: Transaction[], today: string): DividendMonth[] =>
+    computeDividendCalendar({ transactions, today }),
+  (_transactions, today) => today,
+);
+
+export const selectDividendForecast = memoizeKeyed(
+  (transactions: Transaction[], today: string): DividendMonth[] =>
+    computeDividendForecast({ transactions, today }),
+  (_transactions, today) => today,
+);
+
+export const selectYieldOnCost = memoizeKeyed(
+  (transactions: Transaction[], lots: Lot[], today: string): YieldOnCost[] =>
+    computeYieldOnCost({ transactions, lots, today }),
+  (_transactions, _lots, today) => today,
+);
+
+export const selectRebalanceHints = memoize(
+  (
+    allocation: AllocationSlice[],
+    targets: AllocationTargets,
+    netWorth: number,
+  ): RebalanceHint[] =>
+    computeRebalance({
+      allocation: allocation.map((slice) => ({
+        assetClass: slice.assetClass,
+        value: slice.value,
+        weight: slice.weight,
+      })),
+      targets,
+      netWorth,
+    }),
+);
+
+export const selectFeeAnalysis = memoize(
+  (positions: HoldingPosition[], holdings: Holding[], instruments: Instrument[]): FeeAnalysis => {
+    const byId = new Map(holdings.map((holding) => [holding.id, holding]));
+    return computeFeeAnalysis({
+      holdings: positions.map((position) => {
+        const holding = byId.get(position.holdingId);
+        return {
+          id: position.holdingId,
+          label: holding ? labelForHolding(holding, instruments) : position.holdingId,
+          value: position.value,
+          expenseRatio: holding?.expenseRatio ?? null,
+        };
+      }),
+    });
+  },
 );

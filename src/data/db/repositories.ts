@@ -48,6 +48,7 @@ type HoldingRow = {
   name: string | null;
   quantity: number;
   currency: string;
+  expense_ratio: number | null;
 };
 
 type TransactionRow = {
@@ -70,6 +71,7 @@ type LotRow = {
   cost_per_unit: number;
   acquired_at: string;
   remaining_quantity: number;
+  acquired_fx_rate: number | null;
 };
 
 type ValuationRow = {
@@ -151,6 +153,7 @@ function toHolding(row: HoldingRow): Holding {
     name: row.name,
     quantity: row.quantity,
     currency: row.currency as CurrencyCode,
+    expenseRatio: row.expense_ratio,
   };
 }
 
@@ -177,6 +180,7 @@ function toLot(row: LotRow): Lot {
     costPerUnit: row.cost_per_unit,
     acquiredAt: row.acquired_at,
     remainingQuantity: row.remaining_quantity,
+    acquiredFxRate: row.acquired_fx_rate,
   };
 }
 
@@ -303,7 +307,7 @@ export async function getHoldingsWithInstrument(db: Database): Promise<HoldingWi
 
 export async function insertHolding(db: Database, holding: Holding): Promise<void> {
   await db.runAsync(
-    'INSERT INTO holdings (id, account_id, asset_class, instrument_id, name, quantity, currency) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO holdings (id, account_id, asset_class, instrument_id, name, quantity, currency, expense_ratio) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [
       holding.id,
       holding.accountId,
@@ -312,13 +316,14 @@ export async function insertHolding(db: Database, holding: Holding): Promise<voi
       holding.name,
       holding.quantity,
       holding.currency,
+      holding.expenseRatio ?? null,
     ],
   );
 }
 
 export async function updateHolding(db: Database, holding: Holding): Promise<void> {
   await db.runAsync(
-    'UPDATE holdings SET account_id = ?, asset_class = ?, instrument_id = ?, name = ?, quantity = ?, currency = ? WHERE id = ?',
+    'UPDATE holdings SET account_id = ?, asset_class = ?, instrument_id = ?, name = ?, quantity = ?, currency = ?, expense_ratio = ? WHERE id = ?',
     [
       holding.accountId,
       holding.assetClass,
@@ -326,9 +331,18 @@ export async function updateHolding(db: Database, holding: Holding): Promise<voi
       holding.name,
       holding.quantity,
       holding.currency,
+      holding.expenseRatio ?? null,
       holding.id,
     ],
   );
+}
+
+export async function updateHoldingExpenseRatio(
+  db: Database,
+  id: string,
+  expenseRatio: number | null,
+): Promise<void> {
+  await db.runAsync('UPDATE holdings SET expense_ratio = ? WHERE id = ?', [expenseRatio, id]);
 }
 
 export async function deleteHolding(db: Database, id: string): Promise<void> {
@@ -410,8 +424,16 @@ export async function getLotsByHolding(db: Database, holdingId: string): Promise
 
 export async function insertLot(db: Database, lot: Lot): Promise<void> {
   await db.runAsync(
-    'INSERT INTO lots (id, holding_id, quantity, cost_per_unit, acquired_at, remaining_quantity) VALUES (?, ?, ?, ?, ?, ?)',
-    [lot.id, lot.holdingId, lot.quantity, lot.costPerUnit, lot.acquiredAt, lot.remainingQuantity],
+    'INSERT INTO lots (id, holding_id, quantity, cost_per_unit, acquired_at, remaining_quantity, acquired_fx_rate) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [
+      lot.id,
+      lot.holdingId,
+      lot.quantity,
+      lot.costPerUnit,
+      lot.acquiredAt,
+      lot.remainingQuantity,
+      lot.acquiredFxRate,
+    ],
   );
 }
 
@@ -657,4 +679,27 @@ export async function setKv(db: Database, key: string, value: string): Promise<v
 export async function countHoldings(db: Database): Promise<number> {
   const row = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM holdings');
   return row?.count ?? 0;
+}
+
+// Clears every entity table. Deletes children before parents to respect the
+// foreign keys. Leaves `kv` intact so user settings survive a data wipe.
+export async function deleteAllRows(db: Database): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    for (const table of [
+      'transactions',
+      'lots',
+      'valuations',
+      'price_quotes',
+      'notes',
+      'goals',
+      'liabilities',
+      'snapshots',
+      'fx_rates',
+      'holdings',
+      'instruments',
+      'accounts',
+    ]) {
+      await db.runAsync(`DELETE FROM ${table}`);
+    }
+  });
 }
