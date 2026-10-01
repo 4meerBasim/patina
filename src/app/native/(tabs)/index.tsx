@@ -1,14 +1,23 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { Glass } from '@/components/native/glass';
+import { GroupedCard, KeyValueRow, RowSeparator } from '@/components/native/grouped-list';
 import { SegmentedControl } from '@/components/native/segmented-control';
 import { AssetClassColors, Colors } from '@/constants/theme';
 import type { AssetClass } from '@/data/types';
-import { formatCurrency, formatPercent } from '@/lib/money';
-import { useAllocation, useNetWorth, usePeriodDelta, useSettings, useTodayDelta } from '@/store';
+import { formatCurrency, formatNumber, formatPercent, formatSignedCurrency } from '@/lib/money';
+import {
+  useAllocation,
+  useNetWorth,
+  usePeriodDelta,
+  useRecap,
+  useSettings,
+  useTodayDelta,
+  useTopMovers,
+} from '@/store';
 
 const CLASS_LABELS: Record<AssetClass, string> = {
   stocks: 'Stocks',
@@ -18,6 +27,53 @@ const CLASS_LABELS: Record<AssetClass, string> = {
   savings: 'Savings',
 };
 
+const PERIOD_LABELS = ['1W', '1M', '1Y', 'All'];
+const PERIOD_DAYS = [7, 30, 365, 3650];
+
+type MoverRowData = {
+  id: string;
+  ticker: string;
+  name: string;
+  sub: string;
+  value: string;
+  deltaText: string;
+  isGain: boolean;
+  hasSeparator: boolean;
+};
+
+const MoverRow = memo(function MoverRow({
+  data,
+  onPress,
+}: {
+  data: MoverRowData;
+  onPress: (id: string) => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${data.name}, ${data.value}, ${data.deltaText}`}
+      style={styles.moverRow}
+      onPress={() => onPress(data.id)}>
+      <View style={styles.moverAvatar}>
+        <Text style={styles.moverTicker}>{data.ticker}</Text>
+      </View>
+      <View style={styles.moverBody}>
+        <Text style={styles.moverName}>{data.name}</Text>
+        <Text style={styles.moverSub}>{data.sub}</Text>
+      </View>
+      <View style={styles.moverRight}>
+        <Text style={styles.moverValue}>{data.value}</Text>
+        <View style={[styles.deltaChip, data.isGain ? styles.gainChip : styles.lossChip]}>
+          <Text style={[styles.deltaText, data.isGain ? styles.gainText : styles.lossText]}>
+            {data.deltaText}
+          </Text>
+        </View>
+      </View>
+      {data.hasSeparator ? <RowSeparator inset={64} /> : null}
+    </Pressable>
+  );
+});
+
 export default function NativeHome() {
   const [period, setPeriod] = useState(1);
   const settings = useSettings();
@@ -25,6 +81,37 @@ export default function NativeHome() {
   const allocationSlices = useAllocation();
   const monthDelta = usePeriodDelta(30);
   const todayDelta = useTodayDelta();
+  const movers = useTopMovers(3);
+  const recap = useRecap(PERIOD_DAYS[period]);
+
+  const openHolding = useCallback(
+    (id: string) => router.push({ pathname: '/native/holding', params: { id } }),
+    [],
+  );
+
+  const moverRows = useMemo<MoverRowData[]>(
+    () =>
+      movers.map((mover, index) => {
+        const symbol = mover.instrument?.symbol ?? '';
+        const unit = mover.holding.assetClass === 'crypto' ? symbol : 'shares';
+        const gain = mover.valueChange >= 0;
+        return {
+          id: mover.holding.id,
+          ticker: symbol,
+          name: mover.instrument?.name ?? mover.holding.name ?? symbol,
+          sub: `${formatNumber(mover.holding.quantity)} ${unit}`,
+          value: formatSignedCurrency(mover.valueChange, settings.baseCurrency),
+          deltaText: `${gain ? '▲' : '▼'} ${formatPercent(Math.abs(mover.percentChange), { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`,
+          isGain: gain,
+          hasSeparator: index < movers.length - 1,
+        };
+      }),
+    [movers, settings.baseCurrency],
+  );
+
+  const hasRecap = recap.from !== recap.to;
+  const recapGain = recap.netWorthChange >= 0;
+  const marketGain = recap.market >= 0;
 
   const hero = formatCurrency(netWorth.total, settings.baseCurrency);
   const decimalAt = hero.lastIndexOf('.');
@@ -133,6 +220,42 @@ export default function NativeHome() {
             ))}
           </View>
         </View>
+
+        {moverRows.length > 0 ? (
+          <>
+            <Text style={styles.sectionHeader}>Top movers</Text>
+            <GroupedCard>
+              {moverRows.map((data) => (
+                <MoverRow key={data.id} data={data} onPress={openHolding} />
+              ))}
+            </GroupedCard>
+          </>
+        ) : null}
+
+        {hasRecap ? (
+          <>
+            <Text style={styles.sectionHeader}>{`What moved · ${PERIOD_LABELS[period]}`}</Text>
+            <GroupedCard>
+              <KeyValueRow
+                label="Net worth"
+                value={formatSignedCurrency(recap.netWorthChange, settings.baseCurrency)}
+                valueColor={recapGain ? Colors.verdigris : Colors.copper}
+                hasSeparator
+              />
+              <KeyValueRow
+                label="Contributions"
+                value={formatSignedCurrency(recap.contributions, settings.baseCurrency)}
+                hasSeparator
+              />
+              <KeyValueRow
+                label="Market"
+                value={formatSignedCurrency(recap.market, settings.baseCurrency)}
+                valueColor={marketGain ? Colors.verdigris : Colors.copper}
+                hasSeparator={false}
+              />
+            </GroupedCard>
+          </>
+        ) : null}
 
         <Text style={styles.sectionHeader}>Today&apos;s note</Text>
         <View style={styles.noteCard}>
@@ -319,6 +442,62 @@ const styles = StyleSheet.create({
   },
   legendPercent: {
     color: Colors.slate,
+  },
+  moverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 60,
+    paddingHorizontal: 16,
+  },
+  moverAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moverTicker: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.bone,
+  },
+  moverBody: {
+    flex: 1,
+  },
+  moverName: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '400',
+    color: Colors.bone,
+  },
+  moverSub: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400',
+    color: Colors.slate,
+  },
+  moverRight: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  moverValue: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '400',
+    color: Colors.bone,
+    fontVariant: ['tabular-nums'],
+  },
+  deltaChip: {
+    borderRadius: 6,
+    paddingHorizontal: 6,
+  },
+  deltaText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   noteCard: {
     backgroundColor: Colors.surface1,

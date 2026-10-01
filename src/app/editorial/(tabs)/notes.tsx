@@ -1,18 +1,82 @@
 import { router } from 'expo-router';
+import { memo, useCallback, useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Caption } from '@/components/editorial/caption';
 import { Colors, Fonts } from '@/constants/theme';
+import type { Note, NoteKind } from '@/data/types';
 import { formatNumber } from '@/lib/money';
-import { useNotes } from '@/store';
+import { useDataActions, useNotes } from '@/store';
+
+const KIND_LABEL: Record<NoteKind, string> = {
+  concentration: 'Concentration',
+  drift: 'Drift',
+  fees: 'Fees',
+  milestone: 'Milestone',
+  pace: 'Pace',
+};
+
+const MONTH_ABBREV = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+function dayMonth(iso: string): string {
+  const [, month, day] = iso.split('-');
+  return `${Number(day)} ${MONTH_ABBREV[Number(month) - 1]}`;
+}
+
+const NoteBlock = memo(function NoteBlock({
+  note,
+  isFirst,
+  onReviewAllocation,
+}: {
+  note: Note;
+  isFirst: boolean;
+  onReviewAllocation: () => void;
+}) {
+  return (
+    <View style={isFirst ? undefined : styles.divided}>
+      <Caption>
+        {!note.read ? <Text style={styles.brass}>– </Text> : null}
+        {KIND_LABEL[note.kind]} · {dayMonth(note.createdAt)}
+      </Caption>
+      <Text style={note.read ? styles.headlineMuted : styles.headline}>{note.body}</Text>
+      {note.detail ? (
+        <Text style={note.read ? styles.figuresMuted : styles.figures}>{note.detail}</Text>
+      ) : null}
+      {note.kind === 'concentration' ? (
+        <Pressable
+          accessibilityRole="button"
+          hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+          onPress={onReviewAllocation}>
+          <Text style={styles.link}>Review allocation</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+});
 
 export default function NotesScreen() {
   const notes = useNotes();
+  const { regenerateInsights } = useDataActions();
+
+  useEffect(() => {
+    void regenerateInsights();
+  }, [regenerateInsights]);
+
   const unreadCount = notes.filter((note) => !note.read).length;
-  const concentration = notes[0];
-  const milestone = notes[1];
-  const fees = notes[2];
-  const drift = notes[3];
+  const reviewAllocation = useCallback(() => router.push('/editorial/allocation'), []);
 
   return (
     <View style={styles.screen}>
@@ -22,61 +86,24 @@ export default function NotesScreen() {
           <Caption style={styles.brass}>Rules</Caption>
         </View>
 
-        <View>
-          <Caption>
-            {!concentration.read ? <Text style={styles.brass}>– </Text> : null}Concentration · Today
-          </Caption>
-          <Text style={concentration.read ? styles.headlineMuted : styles.headline}>
-            {concentration.body}
+        {notes.length === 0 ? (
+          <Text style={styles.empty}>No notes yet. They arrive as your portfolio shifts.</Text>
+        ) : (
+          notes.map((note, index) => (
+            <NoteBlock
+              key={note.id}
+              note={note}
+              isFirst={index === 0}
+              onReviewAllocation={reviewAllocation}
+            />
+          ))
+        )}
+
+        {notes.length > 0 ? (
+          <Text style={styles.footer}>
+            {formatNumber(notes.length)} {notes.length === 1 ? 'note' : 'notes'} in all
           </Text>
-          {concentration.detail ? (
-            <Text style={concentration.read ? styles.figuresMuted : styles.figures}>
-              {concentration.detail}
-            </Text>
-          ) : null}
-          <Pressable
-            accessibilityRole="button"
-            hitSlop={10}
-            onPress={() => router.push('/editorial/allocation')}>
-            <Text style={styles.link}>Review allocation</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.divided}>
-          <Caption>
-            {!milestone.read ? <Text style={styles.brass}>– </Text> : null}Milestone · Yesterday
-          </Caption>
-          <Text style={milestone.read ? styles.headlineMuted : styles.headline}>
-            {milestone.body}
-          </Text>
-          {milestone.detail ? (
-            <Text style={milestone.read ? styles.figuresMuted : styles.figures}>
-              {milestone.detail}
-            </Text>
-          ) : null}
-        </View>
-
-        <View style={styles.divided}>
-          <Caption>
-            {!fees.read ? <Text style={styles.brass}>– </Text> : null}Fees · 12 Sept
-          </Caption>
-          <Text style={fees.read ? styles.headlineMuted : styles.headline}>{fees.body}</Text>
-          {fees.detail ? (
-            <Text style={fees.read ? styles.figuresMuted : styles.figures}>{fees.detail}</Text>
-          ) : null}
-        </View>
-
-        <View style={styles.divided}>
-          <Caption>
-            {!drift.read ? <Text style={styles.brass}>– </Text> : null}Drift · 3 Sept
-          </Caption>
-          <Text style={drift.read ? styles.headlineMuted : styles.headline}>{drift.body}</Text>
-          {drift.detail ? (
-            <Text style={drift.read ? styles.figuresMuted : styles.figures}>{drift.detail}</Text>
-          ) : null}
-        </View>
-
-        <Text style={styles.footer}>August · 3 notes</Text>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -141,6 +168,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: Colors.brass,
     marginTop: 12,
+  },
+  empty: {
+    fontFamily: Fonts.newsreader20,
+    fontSize: 20,
+    lineHeight: 28,
+    color: Colors.ash,
   },
   footer: {
     fontFamily: Fonts.manrope,

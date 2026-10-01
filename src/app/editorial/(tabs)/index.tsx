@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -16,23 +16,27 @@ import { DirectionView } from '@/components/editorial/direction-view';
 import { useLocale } from '@/components/editorial/locale';
 import { PeriodSelector } from '@/components/editorial/period-selector';
 import { AssetClassColors, Colors, Fonts } from '@/constants/theme';
-import type { AssetClass } from '@/data/types';
+import type { AssetClass, CurrencyCode } from '@/data/types';
 import {
   formatCurrency,
   formatNumber,
   formatPercent,
   formatSignedCurrency,
 } from '@/lib/money';
+import type { Recap } from '@/lib/recap';
 import {
   useAllocation,
   useHoldings,
   useNetWorth,
   useNotes,
   usePeriodDelta,
+  useRecap,
   useRecentActivity,
   useSettings,
   useTodayDelta,
+  useTopMovers,
   type Delta,
+  type TopMover,
 } from '@/store';
 
 const CHART_AREA =
@@ -40,6 +44,9 @@ const CHART_AREA =
 const CHART_LINE = 'M0 70 C30 66 50 74 80 60 S130 40 160 48 S210 30 240 34 S290 18 320 22 L354 14';
 
 const PERIOD_DAYS = 30;
+const EN_PERIODS = ['1W', '1M', '1Y', 'All'];
+const AR_PERIODS = ['أسبوع', 'شهر', 'سنة', 'الكل'];
+const PERIOD_DAYS_MAP = [7, 30, 365, 3650];
 
 const EN_CLASS_LABEL: Record<AssetClass, string> = {
   stocks: 'Stocks',
@@ -56,6 +63,15 @@ const AR_CLASS_LABEL: Record<AssetClass, string> = {
   cash: 'نقد',
   savings: 'مدخرات',
 };
+
+function leadingClass(recap: Recap): { assetClass: AssetClass; change: number } | null {
+  let top: { assetClass: AssetClass; change: number } | null = null;
+  for (const entry of recap.perClass) {
+    if (entry.change === 0) continue;
+    if (!top || Math.abs(entry.change) > Math.abs(top.change)) top = entry;
+  }
+  return top;
+}
 
 function HomeChart({ gradientId, isMirrored }: { gradientId: string; isMirrored?: boolean }) {
   return (
@@ -95,6 +111,80 @@ function Avatar({ label }: { label: string }) {
   );
 }
 
+const MovedRow = memo(function MovedRow({
+  label,
+  value,
+  color,
+  isArabic,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  isArabic: boolean;
+}) {
+  return (
+    <View style={styles.movedRow}>
+      <Text style={isArabic ? styles.arRecentText : styles.recentText}>{label}</Text>
+      <Text style={[isArabic ? styles.arRecentText : styles.recentText, { color }]}>{value}</Text>
+    </View>
+  );
+});
+
+const MoverRow = memo(function MoverRow({
+  holdingId,
+  name,
+  ticker,
+  value,
+  color,
+  isArabic,
+  hasBorder,
+  onPress,
+}: {
+  holdingId: string;
+  name: string;
+  ticker: string;
+  value: string;
+  color: string;
+  isArabic: boolean;
+  hasBorder: boolean;
+  onPress: (id: string) => void;
+}) {
+  const handlePress = useCallback(() => onPress(holdingId), [onPress, holdingId]);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${name} ${ticker}, ${value}`}
+      style={[styles.recentRow, hasBorder && styles.recentRowDivided]}
+      onPress={handlePress}>
+      <Text style={isArabic ? styles.arRecentText : styles.recentText}>
+        {name} <Text style={styles.ticker}>{ticker}</Text>
+      </Text>
+      <Text style={[isArabic ? styles.arRecentText : styles.recentText, { color }]}>{value}</Text>
+    </Pressable>
+  );
+});
+
+function deltaEn(delta: Delta, currency: CurrencyCode, label: string): string {
+  const arrow = delta.amount >= 0 ? '▲' : '▼';
+  const amount = formatSignedCurrency(delta.amount, currency, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  const percent = formatPercent(Math.abs(delta.percent));
+  return `${arrow} ${amount} · ${percent} · ${label}`;
+}
+
+function deltaAr(delta: Delta, currency: CurrencyCode, label: string): string {
+  const arrow = delta.amount >= 0 ? '▲' : '▼';
+  const word = delta.amount >= 0 ? 'ارتفاع' : 'انخفاض';
+  const percent = formatPercent(Math.abs(delta.percent), { numeralSystem: 'arabic' });
+  const amount = formatSignedCurrency(delta.amount, currency, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  return `${arrow} ${word} ${percent} · ‎${amount}‎ · ${label}`;
+}
+
 function EnglishHome() {
   const [period, setPeriod] = useState(1);
   const { baseCurrency } = useSettings();
@@ -105,6 +195,8 @@ function EnglishHome() {
   const notes = useNotes();
   const recent = useRecentActivity(2);
   const holdings = useHoldings();
+  const recap = useRecap(PERIOD_DAYS_MAP[period]);
+  const movers = useTopMovers(3);
 
   const hero = formatCurrency(netWorth.total, baseCurrency, {
     locale: 'en',
@@ -121,6 +213,26 @@ function EnglishHome() {
     holdings.find((holding) => holding.id === holdingId)?.instrument?.symbol ?? '';
   const dividend = recent.find((tx) => tx.type === 'dividend');
   const buy = recent.find((tx) => tx.type === 'buy');
+
+  const openHolding = useCallback(
+    (id: string) => router.push({ pathname: '/editorial/holding', params: { id } }),
+    [],
+  );
+  const openAllocation = useCallback(() => router.push('/editorial/allocation'), []);
+  const openActivity = useCallback(() => router.push('/editorial/activity'), []);
+  const openPerformance = useCallback(() => router.push('/editorial/performance'), []);
+
+  const signed0 = (value: number) =>
+    formatSignedCurrency(value, baseCurrency, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const moverValue = (mover: TopMover) =>
+    `${signed0(mover.valueChange)} · ${formatPercent(mover.percentChange, {
+      signed: true,
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    })}`;
+
+  const lead = leadingClass(recap);
+  const hasRecap = recap.netWorthChange !== 0 || recap.market !== 0 || recap.contributions !== 0;
 
   return (
     <ScrollView
@@ -148,21 +260,61 @@ function EnglishHome() {
       </View>
 
       <View>
-        <PeriodSelector
-          options={['1W', '1M', '1Y', 'All']}
-          selectedIndex={period}
-          onSelect={setPeriod}
-        />
+        <PeriodSelector options={EN_PERIODS} selectedIndex={period} onSelect={setPeriod} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Performance"
           style={styles.chartWrap}
-          onPress={() => router.push('/editorial/performance')}>
+          onPress={openPerformance}>
           <HomeChart gradientId="homeChartEn" />
         </Pressable>
       </View>
 
-      <Pressable accessibilityRole="button" onPress={() => router.push('/editorial/allocation')}>
+      {hasRecap ? (
+        <View>
+          <Caption style={styles.sectionCaption}>What moved · {EN_PERIODS[period]}</Caption>
+          <View style={styles.movedList}>
+            <MovedRow
+              label="Market"
+              value={signed0(recap.market)}
+              color={recap.market >= 0 ? Colors.verdigris : Colors.copper}
+              isArabic={false}
+            />
+            <MovedRow
+              label="Contributions"
+              value={signed0(recap.contributions)}
+              color={Colors.bone}
+              isArabic={false}
+            />
+          </View>
+          {lead ? (
+            <Text style={styles.noteMeta}>
+              {EN_CLASS_LABEL[lead.assetClass]} led · {signed0(lead.change)}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {movers.length > 0 ? (
+        <View>
+          <Caption style={styles.sectionCaption}>Top movers</Caption>
+          {movers.map((mover, index) => (
+            <MoverRow
+              key={mover.holding.id}
+              holdingId={mover.holding.id}
+              name={mover.instrument?.name ?? mover.holding.name ?? ''}
+              ticker={mover.instrument?.symbol ?? ''}
+              value={moverValue(mover)}
+              color={mover.valueChange >= 0 ? Colors.verdigris : Colors.copper}
+              isArabic={false}
+              hasBorder={index > 0}
+              onPress={openHolding}
+            />
+          ))}
+        </View>
+      ) : null}
+
+      <Pressable accessibilityRole="button" onPress={openAllocation}>
         <Caption style={styles.sectionCaption}>Allocation</Caption>
         <View style={styles.allocationBar}>
           {allocation.map((slice) => (
@@ -184,26 +336,22 @@ function EnglishHome() {
         </View>
       </Pressable>
 
-      <View>
-        <Caption style={styles.sectionCaption}>Note · Today</Caption>
-        <Text style={styles.note}>{concentration?.body}</Text>
-        <Text style={styles.noteMeta}>
-          Concentration ·{' '}
-          <Text
-            accessibilityRole="link"
-            style={styles.link}
-            onPress={() => router.push('/editorial/allocation')}>
-            Review allocation
+      {concentration ? (
+        <View>
+          <Caption style={styles.sectionCaption}>Note · Today</Caption>
+          <Text style={styles.note}>{concentration.body}</Text>
+          <Text style={styles.noteMeta}>
+            Concentration ·{' '}
+            <Text accessibilityRole="link" style={styles.link} onPress={openAllocation}>
+              Review allocation
+            </Text>
           </Text>
-        </Text>
-      </View>
+        </View>
+      ) : null}
 
       <View>
         <Caption style={styles.sectionCaption}>Recent</Caption>
-        <Pressable
-          accessibilityRole="button"
-          style={styles.recentRow}
-          onPress={() => router.push('/editorial/activity')}>
+        <Pressable accessibilityRole="button" style={styles.recentRow} onPress={openActivity}>
           <Text style={styles.recentText}>Dividend · {symbolOf(dividend?.holdingId ?? null)}</Text>
           <Text style={styles.recentText}>
             {dividend
@@ -217,7 +365,7 @@ function EnglishHome() {
         <Pressable
           accessibilityRole="button"
           style={[styles.recentRow, styles.recentRowDivided]}
-          onPress={() => router.push('/editorial/activity')}>
+          onPress={openActivity}>
           <Text style={styles.recentText}>
             Buy · {formatNumber(buy?.quantity ?? 0)} {symbolOf(buy?.holdingId ?? null)}
           </Text>
@@ -233,31 +381,6 @@ function EnglishHome() {
       </View>
     </ScrollView>
   );
-}
-
-function deltaEn(delta: Delta, currency: Parameters<typeof formatCurrency>[1], label: string): string {
-  const arrow = delta.amount >= 0 ? '▲' : '▼';
-  const amount = formatSignedCurrency(delta.amount, currency, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-  const percent = formatPercent(Math.abs(delta.percent));
-  return `${arrow} ${amount} · ${percent} · ${label}`;
-}
-
-function deltaAr(
-  delta: Delta,
-  currency: Parameters<typeof formatCurrency>[1],
-  label: string,
-): string {
-  const arrow = delta.amount >= 0 ? '▲' : '▼';
-  const word = delta.amount >= 0 ? 'ارتفاع' : 'انخفاض';
-  const percent = formatPercent(Math.abs(delta.percent), { numeralSystem: 'arabic' });
-  const amount = formatSignedCurrency(delta.amount, currency, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-  return `${arrow} ${word} ${percent} · ‎${amount}‎ · ${label}`;
 }
 
 function ArabicCaption({ children, style }: { children: string; style?: StyleProp<TextStyle> }) {
@@ -277,6 +400,8 @@ function ArabicHome() {
   const allocation = useAllocation();
   const recent = useRecentActivity(2);
   const holdings = useHoldings();
+  const recap = useRecap(PERIOD_DAYS_MAP[period]);
+  const movers = useTopMovers(3);
 
   const heroNumber = formatNumber(netWorth.total, {
     numeralSystem: 'arabic',
@@ -298,6 +423,37 @@ function ArabicHome() {
   const symbolOf = (holdingId: string | null) =>
     holdings.find((holding) => holding.id === holdingId)?.instrument?.symbol ?? '';
   const dividend = recent.find((tx) => tx.type === 'dividend');
+
+  const openHolding = useCallback(
+    (id: string) => router.push({ pathname: '/editorial/holding', params: { id } }),
+    [],
+  );
+  const openAllocation = useCallback(() => router.push('/editorial/allocation'), []);
+  const openActivity = useCallback(() => router.push('/editorial/activity'), []);
+  const openPerformance = useCallback(() => router.push('/editorial/performance'), []);
+
+  const signedAr = (value: number) =>
+    `⁦${formatSignedCurrency(value, baseCurrency, {
+      locale: 'ar',
+      numeralSystem: 'arabic',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })}⁩`;
+  const moverValue = (mover: TopMover) =>
+    `⁦${formatSignedCurrency(mover.valueChange, baseCurrency, {
+      locale: 'ar',
+      numeralSystem: 'arabic',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })} · ${formatPercent(mover.percentChange, {
+      numeralSystem: 'arabic',
+      signed: true,
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    })}⁩`;
+
+  const lead = leadingClass(recap);
+  const hasRecap = recap.netWorthChange !== 0 || recap.market !== 0 || recap.contributions !== 0;
 
   return (
     <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
@@ -327,7 +483,7 @@ function ArabicHome() {
 
         <View>
           <PeriodSelector
-            options={['أسبوع', 'شهر', 'سنة', 'الكل']}
+            options={AR_PERIODS}
             selectedIndex={period}
             onSelect={setPeriod}
             isArabic
@@ -336,12 +492,54 @@ function ArabicHome() {
             accessibilityRole="button"
             accessibilityLabel="Performance"
             style={styles.chartWrap}
-            onPress={() => router.push('/editorial/performance')}>
+            onPress={openPerformance}>
             <HomeChart gradientId="homeChartAr" isMirrored />
           </Pressable>
         </View>
 
-        <Pressable accessibilityRole="button" onPress={() => router.push('/editorial/allocation')}>
+        {hasRecap ? (
+          <View>
+            <ArabicCaption style={styles.sectionCaption}>
+              {`ما الذي تحرّك · ${AR_PERIODS[period]}`}
+            </ArabicCaption>
+            <View style={styles.movedList}>
+              <MovedRow
+                label="السوق"
+                value={signedAr(recap.market)}
+                color={recap.market >= 0 ? Colors.verdigris : Colors.copper}
+                isArabic
+              />
+              <MovedRow label="الإضافات" value={signedAr(recap.contributions)} color={Colors.bone} isArabic />
+            </View>
+            {lead ? (
+              <Text style={styles.arNoteMeta}>
+                {`${AR_CLASS_LABEL[lead.assetClass]} · `}
+                {signedAr(lead.change)}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {movers.length > 0 ? (
+          <View>
+            <ArabicCaption style={styles.sectionCaption}>الأكثر تحرّكًا</ArabicCaption>
+            {movers.map((mover, index) => (
+              <MoverRow
+                key={mover.holding.id}
+                holdingId={mover.holding.id}
+                name={mover.instrument?.name ?? mover.holding.name ?? ''}
+                ticker={mover.instrument?.symbol ?? ''}
+                value={moverValue(mover)}
+                color={mover.valueChange >= 0 ? Colors.verdigris : Colors.copper}
+                isArabic
+                hasBorder={index > 0}
+                onPress={openHolding}
+              />
+            ))}
+          </View>
+        ) : null}
+
+        <Pressable accessibilityRole="button" onPress={openAllocation}>
           <ArabicCaption style={styles.sectionCaption}>التوزيع</ArabicCaption>
           <View style={styles.allocationBar}>
             {allocation.map((slice) => (
@@ -371,10 +569,7 @@ function ArabicHome() {
           </Text>
           <Text style={styles.arNoteMeta}>
             تركّز ·{' '}
-            <Text
-              accessibilityRole="link"
-              style={styles.link}
-              onPress={() => router.push('/editorial/allocation')}>
+            <Text accessibilityRole="link" style={styles.link} onPress={openAllocation}>
               مراجعة التوزيع
             </Text>
           </Text>
@@ -382,10 +577,7 @@ function ArabicHome() {
 
         <View>
           <ArabicCaption style={styles.sectionCaption}>الأحدث</ArabicCaption>
-          <Pressable
-            accessibilityRole="button"
-            style={styles.recentRow}
-            onPress={() => router.push('/editorial/activity')}>
+          <Pressable accessibilityRole="button" style={styles.recentRow} onPress={openActivity}>
             <Text style={styles.arRecentText}>
               توزيعات أرباح · <Text style={styles.ticker}>{symbolOf(dividend?.holdingId ?? null)}</Text>
             </Text>
@@ -542,6 +734,9 @@ const styles = StyleSheet.create({
     color: Colors.ash,
     fontVariant: ['tabular-nums'],
   },
+  movedList: {
+    marginTop: 12,
+  },
   note: {
     fontFamily: Fonts.newsreader20,
     fontSize: 20,
@@ -583,6 +778,12 @@ const styles = StyleSheet.create({
     height: 49,
     borderTopWidth: 1,
     borderTopColor: Colors.hairline,
+  },
+  movedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    height: 40,
   },
   recentText: {
     fontFamily: Fonts.manrope,
