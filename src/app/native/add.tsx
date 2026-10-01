@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -15,23 +15,78 @@ import Animated, { Easing, SlideInDown } from 'react-native-reanimated';
 import { GroupedCard, RowSeparator } from '@/components/native/grouped-list';
 import { SegmentedControl } from '@/components/native/segmented-control';
 import { Colors } from '@/constants/theme';
-import { formatDollars, parseAmount } from '@/lib/amount';
+import { parseAmount } from '@/lib/amount';
+import { formatCurrency, formatPercent } from '@/lib/money';
+import { useAccounts, useDataActions, useHoldings, useNetWorth, useSettings } from '@/store';
 
-const NET_WORTH = 1284930.42;
-const DEFAULT_PRICE = 248.2;
-
+const FALLBACK_PRICE = 248.2;
 const sheetEnter = SlideInDown.duration(400).easing(Easing.bezier(0.2, 0.8, 0.2, 1));
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export default function NativeAdd() {
   const [assetType, setAssetType] = useState(0);
   const [shares, setShares] = useState('50');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const settings = useSettings();
+  const netWorth = useNetWorth();
+  const holdings = useHoldings();
+  const accounts = useAccounts();
+  const { addHolding, addTransaction } = useDataActions();
+
+  const security = holdings.find((holding) => holding.instrument?.symbol === 'AAPL');
+  const account = accounts.find((item) => item.id === security?.accountId);
+  const defaultPrice = security ? security.value / security.quantity : FALLBACK_PRICE;
 
   const sharesValue = parseAmount(shares) ?? 0;
-  const priceValue = parseAmount(price) ?? DEFAULT_PRICE;
+  const priceValue = parseAmount(price) ?? defaultPrice;
   const amount = sharesValue * priceValue;
-  const percent = ((amount / NET_WORTH) * 100).toFixed(2);
+  const percent = netWorth.total === 0 ? 0 : (amount / netWorth.total) * 100;
+
+  const securityLabel = security?.instrument
+    ? `${security.instrument.name} · ${security.instrument.symbol}`
+    : '';
+  const accountLabel = account?.institution ? `${account.institution} ›` : '';
+  const pricePlaceholder = formatCurrency(defaultPrice, settings.baseCurrency, {
+    minimumFractionDigits: 2,
+  });
+
+  const onAdd = useCallback(async () => {
+    if (submitting || !security || !account) {
+      router.back();
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const holdingId = await addHolding({
+        accountId: account.id,
+        assetClass: security.assetClass,
+        instrumentId: security.instrument?.id ?? null,
+        name: null,
+        quantity: sharesValue,
+        currency: security.currency,
+      });
+      await addTransaction({
+        holdingId,
+        accountId: account.id,
+        type: 'buy',
+        quantity: sharesValue,
+        price: priceValue,
+        amount: -(sharesValue * priceValue),
+        currency: security.currency,
+        date: todayIso(),
+        note: notes.trim() || null,
+      });
+      router.back();
+    } catch {
+      setSubmitting(false);
+    }
+  }, [submitting, security, account, sharesValue, priceValue, notes, addHolding, addTransaction]);
 
   return (
     <View style={styles.root}>
@@ -47,7 +102,12 @@ export default function NativeAdd() {
               <Text style={styles.navAction}>Cancel</Text>
             </Pressable>
             <Text style={styles.navTitle}>New Holding</Text>
-            <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add holding"
+              hitSlop={12}
+              disabled={submitting}
+              onPress={onAdd}>
               <Text style={styles.navAction}>Add</Text>
             </Pressable>
           </View>
@@ -66,7 +126,7 @@ export default function NativeAdd() {
             <GroupedCard style={styles.firstCard}>
               <View style={styles.row}>
                 <Text style={styles.rowLabel}>Security</Text>
-                <Text style={styles.rowValueMuted}>Apple · AAPL</Text>
+                <Text style={styles.rowValueMuted}>{securityLabel}</Text>
                 <RowSeparator inset={16} />
               </View>
               <View style={styles.row}>
@@ -90,7 +150,7 @@ export default function NativeAdd() {
                   style={styles.input}
                   value={price}
                   onChangeText={setPrice}
-                  placeholder="$248.20"
+                  placeholder={pricePlaceholder}
                   placeholderTextColor={Colors.disabled}
                   keyboardType="decimal-pad"
                   cursorColor={Colors.brass}
@@ -107,13 +167,14 @@ export default function NativeAdd() {
             </GroupedCard>
 
             <Text style={styles.footnote}>
-              Adds {formatDollars(amount)} · {percent}% of net worth
+              Adds {formatCurrency(amount, settings.baseCurrency)} · {formatPercent(percent)} of net
+              worth
             </Text>
 
             <GroupedCard style={styles.secondCard}>
               <View style={styles.row}>
                 <Text style={styles.rowLabel}>Account</Text>
-                <Text style={styles.rowValueMuted}>Interactive Brokers ›</Text>
+                <Text style={styles.rowValueMuted}>{accountLabel}</Text>
                 <RowSeparator inset={16} />
               </View>
               <View style={styles.row}>

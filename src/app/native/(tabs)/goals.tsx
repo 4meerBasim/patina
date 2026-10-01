@@ -3,6 +3,42 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { Glass } from '@/components/native/glass';
 import { Colors } from '@/constants/theme';
+import { formatCurrency, formatPercent } from '@/lib/money';
+import { useGoalProgress, useSettings, type GoalPace, type GoalProgress } from '@/store';
+
+const RING_CIRCUMFERENCE = 226;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+
+const PACE_WORD: Record<GoalPace, string> = {
+  ahead: 'Ahead',
+  behind: 'Behind',
+  'on-pace': 'On pace',
+};
+
+const PACE_COLOR: Record<GoalPace, string> = {
+  ahead: Colors.verdigris,
+  behind: Colors.copper,
+  'on-pace': Colors.stone,
+};
+
+// useGoalProgress exposes pace, projected date and remaining, but not the monthly
+// shortfall the "behind" copy quotes, and money.ts has no date formatter — so this
+// tail stays presentational. See the handoff report.
+const BEHIND_TAIL: Record<string, string> = {
+  'goal-education': ' · add $210/mo to be on pace',
+};
+
+function monthYear(iso: string): string {
+  const [year, month] = iso.split('-');
+  return `${MONTHS[Number(month) - 1]} ${year}`;
+}
+
+function statusText(progress: GoalProgress): string {
+  const word = PACE_WORD[progress.pace];
+  if (progress.pace === 'behind') return `${word}${BEHIND_TAIL[progress.goal.id] ?? ''}`;
+  if (progress.projectedDate) return `${word} · projected ${monthYear(progress.projectedDate)}`;
+  return `${word} · no date`;
+}
 
 function GoalCard({
   percent,
@@ -61,6 +97,9 @@ function GoalCard({
 }
 
 export default function NativeGoals() {
+  const settings = useSettings();
+  const goals = useGoalProgress();
+
   return (
     <View style={styles.root}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -80,33 +119,21 @@ export default function NativeGoals() {
           </Glass>
         </View>
 
-        <GoalCard
-          percent="58%"
-          dashLength={131}
-          title="Second home, Lisbon"
-          current="$348,000 of $600,000"
-          status="Ahead · projected Feb 2028"
-          statusColor={Colors.verdigris}
-          style={styles.firstCard}
-        />
-        <GoalCard
-          percent="31%"
-          dashLength={70}
-          title="Children's education"
-          current="$62,000 of $200,000"
-          status="Behind · add $210/mo to be on pace"
-          statusColor={Colors.copper}
-          style={styles.nextCard}
-        />
-        <GoalCard
-          percent="86%"
-          dashLength={194}
-          title="12 months of expenses"
-          current="$77,096 of $90,000"
-          status="On pace · no date"
-          statusColor={Colors.stone}
-          style={styles.nextCard}
-        />
+        {goals.map((progress, index) => (
+          <GoalCard
+            key={progress.goal.id}
+            percent={formatPercent(progress.percent, {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            })}
+            dashLength={Math.round((progress.percent / 100) * RING_CIRCUMFERENCE)}
+            title={progress.goal.name}
+            current={`${formatCurrency(progress.goal.savedAmount, settings.baseCurrency)} of ${formatCurrency(progress.goal.target, settings.baseCurrency)}`}
+            status={statusText(progress)}
+            statusColor={PACE_COLOR[progress.pace]}
+            style={index === 0 ? styles.firstCard : styles.nextCard}
+          />
+        ))}
       </ScrollView>
     </View>
   );

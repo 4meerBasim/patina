@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -7,8 +7,25 @@ import { Glass } from '@/components/native/glass';
 import { GroupedCard, RowSeparator } from '@/components/native/grouped-list';
 import { SegmentedControl } from '@/components/native/segmented-control';
 import { Colors } from '@/constants/theme';
+import type { AssetClass } from '@/data/types';
+import { formatCurrency, formatNumber, formatPercent } from '@/lib/money';
+import { useAllocation, useDataStore, useHoldings, useSettings, useTopMovers } from '@/store';
 
 type Delta = { text: string; isGain: boolean };
+
+const SECTIONS: { assetClass: AssetClass; label: string }[] = [
+  { assetClass: 'stocks', label: 'Stocks' },
+  { assetClass: 'crypto', label: 'Crypto' },
+  { assetClass: 'property', label: 'Real estate' },
+];
+
+const VISIBLE_ROWS = 3;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+
+function valuedCaption(iso: string): string {
+  const [, month, day] = iso.split('-');
+  return `Valued ${MONTHS[Number(month) - 1]} ${Number(day)}`;
+}
 
 function HouseIcon() {
   return (
@@ -83,6 +100,35 @@ function HoldingRow({
 
 export default function NativePortfolio() {
   const [grouping, setGrouping] = useState(0);
+  const settings = useSettings();
+  const holdings = useHoldings();
+  const allocation = useAllocation();
+  const movers = useTopMovers(holdings.length);
+  const valuations = useDataStore((state) => state.valuations);
+
+  const moverPercent = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const mover of movers) map.set(mover.holding.id, mover.percentChange);
+    return map;
+  }, [movers]);
+
+  const latestValuationDate = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const valuation of valuations) {
+      if (!map.has(valuation.holdingId)) map.set(valuation.holdingId, valuation.date);
+    }
+    return map;
+  }, [valuations]);
+
+  const sections = useMemo(
+    () =>
+      SECTIONS.map((section) => {
+        const rows = holdings.filter((holding) => holding.assetClass === section.assetClass);
+        const total = allocation.find((slice) => slice.assetClass === section.assetClass)?.value ?? 0;
+        return { ...section, rows, total };
+      }).filter((section) => section.rows.length > 0),
+    [holdings, allocation],
+  );
 
   return (
     <View style={styles.root}>
@@ -101,68 +147,55 @@ export default function NativePortfolio() {
           style={styles.segment}
         />
 
-        <Text style={styles.sectionHeader}>Stocks · $591,068</Text>
-        <GroupedCard>
-          <HoldingRow
-            ticker="AAPL"
-            name="Apple"
-            sub="600 shares"
-            value="$148,920"
-            delta={{ text: '▲ 1.8%', isGain: true }}
-            onPress={() => router.push('/native/holding')}
-            hasSeparator
-          />
-          <HoldingRow
-            ticker="MSFT"
-            name="Microsoft"
-            sub="240 shares"
-            value="$121,340"
-            delta={{ text: '▲ 0.6%', isGain: true }}
-            hasSeparator
-          />
-          <HoldingRow
-            ticker="VTI"
-            name="Vanguard Total"
-            sub="312 shares"
-            value="$98,410"
-            delta={{ text: '▼ 0.4%', isGain: false }}
-            hasSeparator
-          />
-          <View style={styles.showMoreRow}>
-            <Text style={styles.showMoreText}>Show 8 more</Text>
-          </View>
-        </GroupedCard>
-
-        <Text style={styles.sectionHeader}>Crypto · $115,644</Text>
-        <GroupedCard>
-          <HoldingRow
-            ticker="BTC"
-            name="Bitcoin"
-            sub="0.82 BTC"
-            value="$86,100"
-            delta={{ text: '▼ 2.4%', isGain: false }}
-            hasSeparator
-          />
-          <HoldingRow
-            ticker="ETH"
-            name="Ether"
-            sub="8.6 ETH"
-            value="$29,544"
-            delta={{ text: '▼ 1.9%', isGain: false }}
-            hasSeparator={false}
-          />
-        </GroupedCard>
-
-        <Text style={styles.sectionHeader}>Real estate · $398,328</Text>
-        <GroupedCard>
-          <HoldingRow
-            icon="house"
-            name="Lisbon flat"
-            sub="Valued Sept 1"
-            value="$412,000"
-            hasSeparator={false}
-          />
-        </GroupedCard>
+        {sections.map((section) => {
+          const visible = section.rows.slice(0, VISIBLE_ROWS);
+          const hidden = section.rows.length - visible.length;
+          return (
+            <View key={section.assetClass}>
+              <Text style={styles.sectionHeader}>
+                {`${section.label} · ${formatCurrency(section.total, settings.baseCurrency)}`}
+              </Text>
+              <GroupedCard>
+                {visible.map((holding, index) => {
+                  const symbol = holding.instrument?.symbol;
+                  const isProperty = holding.assetClass === 'property';
+                  const unit = holding.assetClass === 'crypto' ? symbol : 'shares';
+                  const valuationDate = latestValuationDate.get(holding.id);
+                  let sub = `${formatNumber(holding.quantity)} ${unit}`;
+                  if (isProperty) sub = valuationDate ? valuedCaption(valuationDate) : '';
+                  const percent = moverPercent.get(holding.id);
+                  let delta: Delta | undefined;
+                  if (percent !== undefined) {
+                    delta = {
+                      text: `${percent >= 0 ? '▲' : '▼'} ${formatPercent(Math.abs(percent), { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`,
+                      isGain: percent >= 0,
+                    };
+                  }
+                  return (
+                    <HoldingRow
+                      key={holding.id}
+                      ticker={symbol}
+                      icon={isProperty ? 'house' : undefined}
+                      name={holding.instrument?.name ?? holding.name ?? ''}
+                      sub={sub}
+                      value={formatCurrency(holding.value, settings.baseCurrency)}
+                      delta={delta}
+                      onPress={
+                        symbol === 'AAPL' ? () => router.push('/native/holding') : undefined
+                      }
+                      hasSeparator={index < visible.length - 1 || hidden > 0}
+                    />
+                  );
+                })}
+                {hidden > 0 ? (
+                  <View style={styles.showMoreRow}>
+                    <Text style={styles.showMoreText}>{`Show ${formatNumber(hidden)} more`}</Text>
+                  </View>
+                ) : null}
+              </GroupedCard>
+            </View>
+          );
+        })}
       </ScrollView>
     </View>
   );

@@ -1,10 +1,23 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { GroupedCard, RowSeparator } from '@/components/native/grouped-list';
 import { Switch } from '@/components/native/switch';
 import { Colors } from '@/constants/theme';
+import type { Locale, NumeralSystem } from '@/data/settings';
+import { CURRENCIES } from '@/data/types';
+import { toArabicNumerals } from '@/lib/money';
+import { useDataActions, useSettings } from '@/store';
+
+const LOCALE_LABEL: Record<Locale, string> = {
+  en: 'English',
+  ar: 'Arabic',
+};
+
+const NUMERAL_LABEL: Record<NumeralSystem, string> = {
+  latin: '0 1 2 3',
+  arabic: toArabicNumerals('0 1 2 3'),
+};
 
 function Chevron() {
   return (
@@ -47,25 +60,44 @@ function LinkedRow({
 function NavRow({
   label,
   value,
+  onPress,
   hasSeparator,
 }: {
   label: string;
   value: string;
+  onPress: () => void;
   hasSeparator: boolean;
 }) {
   return (
-    <View style={styles.navRow}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${value}`}
+      accessibilityHint="Cycles to the next option"
+      hitSlop={8}
+      style={styles.navRow}
+      onPress={onPress}>
       <Text style={styles.navLabel}>{label}</Text>
       <Text style={styles.navValue}>{value}</Text>
       <Chevron />
       {hasSeparator ? <RowSeparator inset={16} /> : null}
-    </View>
+    </Pressable>
   );
 }
 
 export default function NativeSettings() {
-  const [isBlurFiguresOn, setIsBlurFiguresOn] = useState(true);
-  const [isFaceIdOn, setIsFaceIdOn] = useState(true);
+  const settings = useSettings();
+  const { updateSettings } = useDataActions();
+
+  const cycleLocale = () =>
+    void updateSettings({ locale: settings.locale === 'en' ? 'ar' : 'en' });
+  const cycleNumerals = () =>
+    void updateSettings({
+      numeralSystem: settings.numeralSystem === 'latin' ? 'arabic' : 'latin',
+    });
+  const cycleCurrency = () => {
+    const next = CURRENCIES[(CURRENCIES.indexOf(settings.baseCurrency) + 1) % CURRENCIES.length];
+    void updateSettings({ baseCurrency: next });
+  };
 
   return (
     <View style={styles.root}>
@@ -80,7 +112,7 @@ export default function NativeSettings() {
           </View>
           <View style={styles.profileBody}>
             <Text style={styles.profileName}>Rania Haddad</Text>
-            <Text style={styles.profileSub}>Apple ID, iCloud sync, USD base</Text>
+            <Text style={styles.profileSub}>{`Apple ID, iCloud sync, ${settings.baseCurrency} base`}</Text>
           </View>
           <Chevron />
         </View>
@@ -112,9 +144,19 @@ export default function NativeSettings() {
 
         <Text style={styles.sectionHeader}>Language &amp; numbers</Text>
         <GroupedCard>
-          <NavRow label="Language" value="English" hasSeparator />
-          <NavRow label="Numerals" value="0 1 2 3" hasSeparator />
-          <NavRow label="Base currency" value="USD" hasSeparator={false} />
+          <NavRow label="Language" value={LOCALE_LABEL[settings.locale]} onPress={cycleLocale} hasSeparator />
+          <NavRow
+            label="Numerals"
+            value={NUMERAL_LABEL[settings.numeralSystem]}
+            onPress={cycleNumerals}
+            hasSeparator
+          />
+          <NavRow
+            label="Base currency"
+            value={settings.baseCurrency}
+            onPress={cycleCurrency}
+            hasSeparator={false}
+          />
         </GroupedCard>
 
         <Text style={styles.sectionHeader}>Privacy</Text>
@@ -122,15 +164,19 @@ export default function NativeSettings() {
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>Blur figures on launch</Text>
             <Switch
-              value={isBlurFiguresOn}
-              onValueChange={setIsBlurFiguresOn}
+              value={settings.privacyBlur}
+              onValueChange={(next) => void updateSettings({ privacyBlur: next })}
               accessibilityLabel="Blur figures on launch"
             />
             <RowSeparator inset={16} />
           </View>
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>Face ID</Text>
-            <Switch value={isFaceIdOn} onValueChange={setIsFaceIdOn} accessibilityLabel="Face ID" />
+            <Switch
+              value={settings.biometricLock}
+              onValueChange={(next) => void updateSettings({ biometricLock: next })}
+              accessibilityLabel="Face ID"
+            />
           </View>
         </GroupedCard>
       </ScrollView>

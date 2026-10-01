@@ -7,6 +7,11 @@ import { Glass } from '@/components/native/glass';
 import { GroupedCard, RowSeparator } from '@/components/native/grouped-list';
 import { SegmentedControl } from '@/components/native/segmented-control';
 import { Colors } from '@/constants/theme';
+import { formatCurrency, formatNumber, formatPercent, formatSignedCurrency } from '@/lib/money';
+import { moneyWeightedReturn } from '@/lib/returns';
+import { useAccounts, useHoldings, useLots, useNetWorth, useSettings, useTransactions } from '@/store';
+
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
 
 function PositionRow({
   label,
@@ -30,6 +35,38 @@ function PositionRow({
 
 export default function NativeHolding() {
   const [period, setPeriod] = useState(2);
+  const settings = useSettings();
+  const holdings = useHoldings();
+  const lots = useLots();
+  const netWorth = useNetWorth();
+  const accounts = useAccounts();
+  const transactions = useTransactions();
+
+  const holding = holdings.find((item) => item.instrument?.symbol === 'AAPL');
+  const account = accounts.find((item) => item.id === holding?.accountId);
+
+  const shares = holding?.quantity ?? 0;
+  const value = holding?.value ?? 0;
+  const costBasis = lots
+    .filter((lot) => lot.holdingId === holding?.id)
+    .reduce((sum, lot) => sum + lot.remainingQuantity * lot.costPerUnit, 0);
+  const perUnit = shares === 0 ? 0 : costBasis / shares;
+  const gain = value - costBasis;
+  const gainPercent = costBasis === 0 ? 0 : (gain / costBasis) * 100;
+  const weightPercent = netWorth.total === 0 ? 0 : (value / netWorth.total) * 100;
+  const annualised = holding
+    ? moneyWeightedReturn(
+        transactions
+          .filter((tx) => tx.holdingId === holding.id)
+          .map((tx) => ({ date: tx.date, amount: -tx.amount })),
+        { date: TODAY_ISO, value },
+      )
+    : null;
+
+  const title = holding?.instrument?.name ?? '';
+  const meta = holding?.instrument
+    ? `${holding.instrument.symbol} · NASDAQ · ${account?.institution ?? ''}`
+    : '';
 
   return (
     <View style={styles.root}>
@@ -63,8 +100,8 @@ export default function NativeHolding() {
           </View>
 
           <View style={styles.titleBlock}>
-            <Text style={styles.largeTitle}>Apple</Text>
-            <Text style={styles.meta}>AAPL · NASDAQ · Interactive Brokers</Text>
+            <Text style={styles.largeTitle}>{title}</Text>
+            <Text style={styles.meta}>{meta}</Text>
           </View>
 
           <View style={styles.heroBlock}>
@@ -108,22 +145,42 @@ export default function NativeHolding() {
           />
           <Text style={styles.sectionHeader}>Position</Text>
           <GroupedCard>
-            <PositionRow label="Shares" value="600" valueColor={Colors.ash} hasSeparator />
+            <PositionRow
+              label="Shares"
+              value={formatNumber(shares)}
+              valueColor={Colors.ash}
+              hasSeparator
+            />
             <PositionRow
               label="Cost basis"
-              value="$98,640 · $164.40"
+              value={`${formatCurrency(costBasis, settings.baseCurrency)} · ${formatCurrency(perUnit, settings.baseCurrency, { minimumFractionDigits: 2 })}`}
               valueColor={Colors.ash}
               hasSeparator
             />
             <PositionRow
               label="Unrealized gain"
-              value="+$50,280 · 51.0%"
-              valueColor={Colors.verdigris}
+              value={`${formatSignedCurrency(gain, settings.baseCurrency)} · ${formatPercent(gainPercent, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`}
+              valueColor={gain >= 0 ? Colors.verdigris : Colors.copper}
               hasSeparator
             />
+            {annualised !== null ? (
+              <PositionRow
+                label="Annualized return"
+                value={formatPercent(annualised * 100, {
+                  signed: true,
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}
+                valueColor={annualised >= 0 ? Colors.verdigris : Colors.copper}
+                hasSeparator
+              />
+            ) : null}
             <PositionRow
               label="Weight"
-              value="11.6%"
+              value={formatPercent(weightPercent, {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              })}
               valueColor={Colors.ash}
               hasSeparator={false}
             />

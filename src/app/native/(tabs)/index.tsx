@@ -1,22 +1,50 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { Glass } from '@/components/native/glass';
 import { SegmentedControl } from '@/components/native/segmented-control';
 import { AssetClassColors, Colors } from '@/constants/theme';
+import type { AssetClass } from '@/data/types';
+import { formatCurrency, formatPercent } from '@/lib/money';
+import { useAllocation, useNetWorth, usePeriodDelta, useSettings, useTodayDelta } from '@/store';
 
-const allocation = [
-  { label: 'Stocks', percent: '46%', flex: 46, color: AssetClassColors.stocks },
-  { label: 'Crypto', percent: '9%', flex: 9, color: AssetClassColors.crypto },
-  { label: 'Property', percent: '31%', flex: 31, color: AssetClassColors.property },
-  { label: 'Cash', percent: '6%', flex: 6, color: AssetClassColors.cash },
-  { label: 'Savings', percent: '8%', flex: 8, color: AssetClassColors.savings },
-];
+const CLASS_LABELS: Record<AssetClass, string> = {
+  stocks: 'Stocks',
+  crypto: 'Crypto',
+  property: 'Property',
+  cash: 'Cash',
+  savings: 'Savings',
+};
 
 export default function NativeHome() {
   const [period, setPeriod] = useState(1);
+  const settings = useSettings();
+  const netWorth = useNetWorth();
+  const allocationSlices = useAllocation();
+  const monthDelta = usePeriodDelta(30);
+  const todayDelta = useTodayDelta();
+
+  const hero = formatCurrency(netWorth.total, settings.baseCurrency);
+  const decimalAt = hero.lastIndexOf('.');
+  const heroWhole = decimalAt >= 0 ? hero.slice(0, decimalAt) : hero;
+  const heroCents = decimalAt >= 0 ? hero.slice(decimalAt) : '';
+
+  const allocation = useMemo(
+    () =>
+      allocationSlices.map((slice) => ({
+        assetClass: slice.assetClass,
+        label: CLASS_LABELS[slice.assetClass],
+        color: AssetClassColors[slice.assetClass],
+        percent: formatPercent(slice.weight, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+        flex: Math.round(slice.weight),
+      })),
+    [allocationSlices],
+  );
+
+  const monthGain = monthDelta.amount >= 0;
+  const todayGain = todayDelta.amount >= 0;
 
   return (
     <View style={styles.root}>
@@ -39,14 +67,19 @@ export default function NativeHome() {
         <View style={styles.heroCard}>
           <Text style={styles.heroLabel}>Total · Updated 9:12 AM</Text>
           <Text style={styles.heroValue}>
-            $1,284,930<Text style={styles.heroCents}>.42</Text>
+            {heroWhole}
+            <Text style={styles.heroCents}>{heroCents}</Text>
           </Text>
           <View style={styles.chips}>
-            <View style={[styles.chip, styles.gainChip]}>
-              <Text style={[styles.chipText, styles.gainText]}>▲ 0.98% · 1M</Text>
+            <View style={[styles.chip, monthGain ? styles.gainChip : styles.lossChip]}>
+              <Text style={[styles.chipText, monthGain ? styles.gainText : styles.lossText]}>
+                {`${monthGain ? '▲' : '▼'} ${formatPercent(Math.abs(monthDelta.percent))} · 1M`}
+              </Text>
             </View>
-            <View style={[styles.chip, styles.lossChip]}>
-              <Text style={[styles.chipText, styles.lossText]}>▼ 0.24% · Today</Text>
+            <View style={[styles.chip, todayGain ? styles.gainChip : styles.lossChip]}>
+              <Text style={[styles.chipText, todayGain ? styles.gainText : styles.lossText]}>
+                {`${todayGain ? '▲' : '▼'} ${formatPercent(Math.abs(todayDelta.percent))} · Today`}
+              </Text>
             </View>
           </View>
           <Svg viewBox="0 0 322 88" style={styles.heroChart}>
@@ -81,7 +114,7 @@ export default function NativeHome() {
         <View style={styles.allocationCard}>
           <View style={styles.bar}>
             {allocation.map((item) => (
-              <View key={item.label} style={{ flex: item.flex, backgroundColor: item.color }} />
+              <View key={item.assetClass} style={{ flex: item.flex, backgroundColor: item.color }} />
             ))}
           </View>
           <View style={styles.legend}>
@@ -90,7 +123,7 @@ export default function NativeHome() {
                 {allocation
                   .filter((_, index) => index % 3 === column)
                   .map((item) => (
-                    <View key={item.label} style={styles.legendItem}>
+                    <View key={item.assetClass} style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: item.color }]} />
                       <Text style={styles.legendLabel}>{item.label}</Text>
                       <Text style={[styles.legendLabel, styles.legendPercent]}>{item.percent}</Text>
