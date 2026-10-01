@@ -33,7 +33,13 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Patina uses Face ID to unlock your portfolio."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
