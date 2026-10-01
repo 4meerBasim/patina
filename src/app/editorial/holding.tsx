@@ -1,27 +1,28 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, {
-  Circle,
-  Defs,
-  Line,
-  LinearGradient,
-  Path,
-  Stop,
-  Text as SvgText,
-} from 'react-native-svg';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { Caption } from '@/components/editorial/caption';
 import { PeriodSelector } from '@/components/editorial/period-selector';
 import { Colors, Fonts } from '@/constants/theme';
-import {
-  formatCurrency,
-  formatNumber,
-  formatPercent,
-  formatSignedCurrency,
-} from '@/lib/money';
+import type { AssetClass } from '@/data/types';
+import { parseAmount } from '@/lib/amount';
+import { formatCurrency, formatNumber, formatPercent, formatSignedCurrency } from '@/lib/money';
 import { moneyWeightedReturn } from '@/lib/returns';
-import { useHoldings, useLots, useNetWorth, useSettings, useTransactions } from '@/store';
+import {
+  useAccounts,
+  useDataActions,
+  useDataStore,
+  useFeeAnalysis,
+  useHoldingMetrics,
+  useHoldings,
+  useLots,
+  useNetWorth,
+  useSettings,
+  useTransactions,
+  useYieldOnCost,
+} from '@/store';
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
 
@@ -43,96 +44,274 @@ const MONTH_ABBREV = [
   'Dec',
 ];
 
+const CLASS_LABEL: Record<AssetClass, string> = {
+  stocks: 'Stocks',
+  crypto: 'Crypto',
+  property: 'Real estate',
+  cash: 'Cash',
+  savings: 'Savings',
+};
+
 function monthYear(iso: string): string {
   const [year, month] = iso.split('-');
   return `${MONTH_ABBREV[Number(month) - 1]} ${year}`;
 }
 
+function dayMonthYear(iso: string): string {
+  const [year, month, day] = iso.split('-');
+  return `${Number(day)} ${MONTH_ABBREV[Number(month) - 1]} ${year}`;
+}
+
+function splitFraction(formatted: string): [string, string] {
+  const dot = formatted.lastIndexOf('.');
+  if (dot < 0) return [formatted, ''];
+  return [formatted.slice(0, dot), formatted.slice(dot)];
+}
+
+type Row = { label: string; value: string; valueColor: string };
+
 export default function HoldingScreen() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const [periodIndex, setPeriodIndex] = useState(2);
+  const [isAdding, setIsAdding] = useState(false);
+  const [markInput, setMarkInput] = useState('');
+
   const holdings = useHoldings();
+  const positions = useHoldingMetrics();
   const lots = useLots();
   const netWorth = useNetWorth();
   const transactions = useTransactions();
+  const feeAnalysis = useFeeAnalysis();
+  const yieldOnCost = useYieldOnCost();
+  const accounts = useAccounts();
+  const valuations = useDataStore((state) => state.valuations);
+  const priceQuotes = useDataStore((state) => state.priceQuotes);
   const { baseCurrency } = useSettings();
+  const { addValuation } = useDataActions();
 
-  const money0 = (value: number) =>
-    formatCurrency(value, baseCurrency, {
-      locale: 'en',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-  const money2 = (value: number) =>
-    formatCurrency(value, baseCurrency, {
-      locale: 'en',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  const holding =
+    (id ? holdings.find((item) => item.id === id) : undefined) ??
+    holdings.find((item) => item.instrument?.symbol === 'AAPL') ??
+    holdings[0];
 
-  const holding = holdings.find((item) => item.instrument?.symbol === 'AAPL');
-  const holdingLots = lots.filter((lot) => lot.holdingId === holding?.id);
-  const quantity = holding?.quantity ?? 0;
-  const value = holding?.value ?? 0;
-  const costBasis = holdingLots.reduce((sum, lot) => sum + lot.quantity * lot.costPerUnit, 0);
-  const avgCost = quantity > 0 ? costBasis / quantity : 0;
-  const unrealised = value - costBasis;
-  const unrealisedPct = costBasis > 0 ? (unrealised / costBasis) * 100 : 0;
-  const firstAcquired = holdingLots.reduce<string | null>(
-    (earliest, lot) =>
-      earliest === null || lot.acquiredAt < earliest ? lot.acquiredAt : earliest,
-    null,
-  );
-  const weight = netWorth.total > 0 ? (value / netWorth.total) * 100 : 0;
+  const position = positions.find((item) => item.holdingId === holding?.id);
+  const account = accounts.find((item) => item.id === holding?.accountId);
+  const isManual = holding ? holding.instrumentId == null : false;
 
-  const annualised = holding
-    ? moneyWeightedReturn(
-        transactions
-          .filter((tx) => tx.holdingId === holding.id)
-          .map((tx) => ({ date: tx.date, amount: -tx.amount })),
-        { date: TODAY_ISO, value },
-      )
-    : null;
-
-  const provenanceRows: { label: string; value: string; valueColor: string }[] = [
-    { label: 'Quantity', value: `${formatNumber(quantity)} shares`, valueColor: Colors.bone },
-    {
-      label: 'Cost basis',
-      value: `${money0(costBasis)} · ${money2(avgCost)} avg`,
-      valueColor: Colors.bone,
-    },
-    {
-      label: 'Unrealised',
-      value: `${unrealised >= 0 ? '▲' : '▼'} ${formatSignedCurrency(unrealised, baseCurrency, {
+  const money0 = useCallback(
+    (value: number, currency = baseCurrency) =>
+      formatCurrency(value, currency, {
+        locale: 'en',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
-      })} · ${formatPercent(unrealisedPct, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`,
-      valueColor: unrealised >= 0 ? Colors.verdigris : Colors.copper,
-    },
-    ...(annualised !== null
-      ? [
-          {
-            label: 'Annualised return',
-            value: formatPercent(annualised * 100, {
-              signed: true,
-              minimumFractionDigits: 1,
-              maximumFractionDigits: 1,
-            }),
-            valueColor: annualised >= 0 ? Colors.verdigris : Colors.copper,
-          },
-        ]
-      : []),
-    {
-      label: 'First acquired',
-      value: firstAcquired ? monthYear(firstAcquired) : '',
+      }),
+    [baseCurrency],
+  );
+  const money2 = useCallback(
+    (value: number) =>
+      formatCurrency(value, baseCurrency, {
+        locale: 'en',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [baseCurrency],
+  );
+
+  const holdingLots = useMemo(
+    () => lots.filter((lot) => lot.holdingId === holding?.id),
+    [lots, holding?.id],
+  );
+  const holdingMarks = useMemo(
+    () =>
+      valuations
+        .filter((valuation) => valuation.holdingId === holding?.id)
+        .sort((a, b) => Date.parse(b.date) - Date.parse(a.date)),
+    [valuations, holding?.id],
+  );
+
+  const fee = feeAnalysis.holdings.find((item) => item.holdingId === holding?.id);
+  const yoc = yieldOnCost.find((item) => item.holdingId === holding?.id);
+
+  const annualised = useMemo(() => {
+    if (!holding || isManual) return null;
+    return moneyWeightedReturn(
+      transactions
+        .filter((tx) => tx.holdingId === holding.id)
+        .map((tx) => ({ date: tx.date, amount: -tx.amount })),
+      { date: TODAY_ISO, value: holding.value },
+    );
+  }, [holding, isManual, transactions]);
+
+  const toggleAdding = useCallback(() => {
+    setIsAdding((prev) => !prev);
+    setMarkInput('');
+  }, []);
+  const saveMark = useCallback(() => {
+    if (!holding) return;
+    const value = parseAmount(markInput);
+    if (value == null || value <= 0) return;
+    void addValuation({
+      holdingId: holding.id,
+      date: TODAY_ISO,
+      value,
+      currency: holding.currency,
+    });
+    setIsAdding(false);
+    setMarkInput('');
+  }, [holding, markInput, addValuation]);
+  const goBack = useCallback(() => router.back(), []);
+  const goEdit = useCallback(() => router.push('/editorial/add'), []);
+
+  if (!holding) {
+    return <View style={styles.screen} />;
+  }
+
+  const name = holding.instrument?.name ?? holding.name ?? '';
+  const avatarLabel = name.slice(0, 1).toUpperCase();
+  const subtitle = holding.instrument
+    ? `${holding.instrument.symbol} · ${account?.institution ?? account?.name ?? ''}`
+    : `${CLASS_LABEL[holding.assetClass]} · ${account?.name ?? ''}`;
+
+  const quoteDate =
+    priceQuotes.find((quote) => quote.instrumentId === holding.instrumentId)?.asOf ?? TODAY_ISO;
+  const heroDate = isManual
+    ? holdingMarks[0]
+      ? dayMonthYear(holdingMarks[0].date)
+      : dayMonthYear(TODAY_ISO)
+    : dayMonthYear(quoteDate);
+  const [heroWhole, heroFraction] = splitFraction(money2(holding.value));
+
+  let heroChange: { text: string; color: string } | null = null;
+  if (!isManual && position?.unrealisedGain != null && position.unrealisedPercent != null) {
+    const up = position.unrealisedGain >= 0;
+    heroChange = {
+      text: `${up ? '▲' : '▼'} ${formatSignedCurrency(position.unrealisedGain, baseCurrency, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      })} · ${formatPercent(position.unrealisedPercent, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      })}`,
+      color: up ? Colors.verdigris : Colors.copper,
+    };
+  } else if (isManual && holdingMarks.length >= 2) {
+    const change = holdingMarks[0].value - holdingMarks[1].value;
+    const percent = holdingMarks[1].value !== 0 ? (change / holdingMarks[1].value) * 100 : 0;
+    const up = change >= 0;
+    heroChange = {
+      text: `${up ? '▲' : '▼'} ${formatSignedCurrency(change, holding.currency, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      })} · ${formatPercent(percent, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      })} since ${monthYear(holdingMarks[1].date)}`,
+      color: up ? Colors.verdigris : Colors.copper,
+    };
+  }
+
+  const rows: Row[] = [];
+  if (!isManual) {
+    rows.push({ label: 'Quantity', value: `${formatNumber(holding.quantity)} shares`, valueColor: Colors.bone });
+  }
+  if (position?.costBasis != null && position.averageCost != null) {
+    rows.push({
+      label: 'Cost basis',
+      value: `${money0(position.costBasis)} · ${money2(position.averageCost)} avg`,
       valueColor: Colors.bone,
-    },
-    {
+    });
+  }
+  if (position?.unrealisedGain != null && position.unrealisedPercent != null) {
+    rows.push({
+      label: 'Unrealised',
+      value: `${position.unrealisedGain >= 0 ? '▲' : '▼'} ${formatSignedCurrency(
+        position.unrealisedGain,
+        baseCurrency,
+        { minimumFractionDigits: 0, maximumFractionDigits: 0 },
+      )} · ${formatPercent(position.unrealisedPercent, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      })}`,
+      valueColor: position.unrealisedGain >= 0 ? Colors.verdigris : Colors.copper,
+    });
+  }
+  if (position && position.realisedGain !== 0) {
+    rows.push({
+      label: 'Realised',
+      value: formatSignedCurrency(position.realisedGain, baseCurrency, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }),
+      valueColor: position.realisedGain >= 0 ? Colors.verdigris : Colors.copper,
+    });
+  }
+  if (
+    holding.currency !== baseCurrency &&
+    position?.marketGain != null &&
+    position.currencyGain != null
+  ) {
+    rows.push({
+      label: 'Market gain',
+      value: formatSignedCurrency(position.marketGain, baseCurrency, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }),
+      valueColor: position.marketGain >= 0 ? Colors.verdigris : Colors.copper,
+    });
+    rows.push({
+      label: 'Currency gain',
+      value: formatSignedCurrency(position.currencyGain, baseCurrency, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }),
+      valueColor: position.currencyGain >= 0 ? Colors.verdigris : Colors.copper,
+    });
+  }
+  if (annualised !== null) {
+    rows.push({
+      label: 'Annualised return',
+      value: formatPercent(annualised * 100, {
+        signed: true,
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }),
+      valueColor: annualised >= 0 ? Colors.verdigris : Colors.copper,
+    });
+  }
+  if (fee) {
+    rows.push({
+      label: 'Expense ratio',
+      value: `${(fee.ratio * 100).toFixed(2)}% · ${money0(fee.annualCost)}/yr`,
+      valueColor: Colors.bone,
+    });
+  }
+  if (yoc) {
+    rows.push({
+      label: 'Yield on cost',
+      value: formatPercent(yoc.yieldOnCost, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      valueColor: Colors.bone,
+    });
+  }
+  if (!isManual && holdingLots.length > 0) {
+    const firstAcquired = holdingLots.reduce<string | null>(
+      (earliest, lot) => (earliest === null || lot.acquiredAt < earliest ? lot.acquiredAt : earliest),
+      null,
+    );
+    if (firstAcquired) {
+      rows.push({ label: 'First acquired', value: monthYear(firstAcquired), valueColor: Colors.bone });
+    }
+  }
+  if (netWorth.total > 0) {
+    rows.push({
       label: 'Weight',
-      value: `${formatPercent(weight, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} of net worth`,
+      value: `${formatPercent((holding.value / netWorth.total) * 100, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      })} of net worth`,
       valueColor: Colors.bone,
-    },
-  ];
-  const provenanceLabel = provenanceRows.map((row) => `${row.label}, ${row.value}`).join('. ');
+    });
+  }
+  const rowsLabel = rows.map((row) => `${row.label}, ${row.value}`).join('. ');
 
   return (
     <View style={styles.screen}>
@@ -142,7 +321,7 @@ export default function HoldingScreen() {
             accessibilityRole="button"
             accessibilityLabel="Back"
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            onPress={() => router.back()}>
+            onPress={goBack}>
             <Svg
               width={24}
               height={24}
@@ -157,77 +336,140 @@ export default function HoldingScreen() {
           <Pressable
             accessibilityRole="button"
             hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-            onPress={() => router.push('/editorial/add')}>
+            onPress={goEdit}>
             <Text style={styles.edit}>Edit</Text>
           </Pressable>
         </View>
 
         <View style={styles.identity}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarLabel}>S</Text>
+            <Text style={styles.avatarLabel}>{avatarLabel}</Text>
           </View>
           <View>
-            <Text style={styles.name}>Apple</Text>
-            <Text style={styles.ticker}>AAPL · NASDAQ · IBKR</Text>
+            <Text style={styles.name}>{name}</Text>
+            <Text style={styles.ticker}>{subtitle}</Text>
           </View>
         </View>
 
         <View style={styles.priceBlock}>
-          <Text style={styles.date}>14 March 2026</Text>
+          <Text style={styles.date}>{heroDate}</Text>
           <Text style={styles.price}>
-            $131,204<Text style={styles.priceFraction}>.50</Text>
+            {heroWhole}
+            <Text style={styles.priceFraction}>{heroFraction}</Text>
           </Text>
-          <Text style={styles.change}>▼ −$17,715 · 11.9% below today</Text>
+          {heroChange ? (
+            <Text style={[styles.change, { color: heroChange.color }]}>{heroChange.text}</Text>
+          ) : null}
         </View>
 
-        <View style={styles.chart}>
-          <Svg width="100%" height="100%" viewBox="0 0 402 240">
-            <Defs>
-              <LinearGradient id="holdingChart" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={Colors.bone} stopOpacity={0.08} />
-                <Stop offset="1" stopColor={Colors.bone} stopOpacity={0} />
-              </LinearGradient>
-            </Defs>
-            <Path d={`${chartPath} V240 H0Z`} fill="url(#holdingChart)" />
-            <Path d={chartPath} fill="none" stroke={Colors.bone} strokeWidth={1.5} />
-            <Line x1={150} y1={20} x2={150} y2={230} stroke={Colors.slate} strokeWidth={1} />
-            <Circle cx={150} cy={131} r={4} fill={Colors.bone} />
-            <Line x1={292} y1={60} x2={292} y2={230} stroke={Colors.brass} strokeWidth={1} />
-            <SvgText x={298} y={72} fontFamily={Fonts.manrope} fontSize={11} fill={Colors.brass}>
-              bought the dip
-            </SvgText>
-            <Line x1={0} y1={239.5} x2={402} y2={239.5} stroke={Colors.hairline} />
-          </Svg>
-        </View>
-
-        <PeriodSelector
-          options={['1W', '1M', '1Y', 'All']}
-          selectedIndex={periodIndex}
-          onSelect={setPeriodIndex}
-          style={styles.periods}
-        />
-
-        <View style={styles.provenance}>
-          <View style={styles.sectionDivider}>
-            <Caption>Provenance</Caption>
-          </View>
-          <View style={styles.defList} accessible accessibilityLabel={provenanceLabel}>
-            <View style={styles.defLabels}>
-              {provenanceRows.map((row) => (
-                <Text key={row.label} style={styles.defLabel}>
-                  {row.label}
-                </Text>
-              ))}
+        {!isManual ? (
+          <>
+            <View style={styles.chart}>
+              <Svg width="100%" height="100%" viewBox="0 0 402 240">
+                <Defs>
+                  <LinearGradient id="holdingChart" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0" stopColor={Colors.bone} stopOpacity={0.08} />
+                    <Stop offset="1" stopColor={Colors.bone} stopOpacity={0} />
+                  </LinearGradient>
+                </Defs>
+                <Path d={`${chartPath} V240 H0Z`} fill="url(#holdingChart)" />
+                <Path d={chartPath} fill="none" stroke={Colors.bone} strokeWidth={1.5} />
+                <Line x1={0} y1={239.5} x2={402} y2={239.5} stroke={Colors.hairline} />
+              </Svg>
             </View>
-            <View style={styles.defValues}>
-              {provenanceRows.map((row) => (
-                <Text key={row.label} style={[styles.defValue, { color: row.valueColor }]}>
-                  {row.value}
-                </Text>
-              ))}
+            <PeriodSelector
+              options={['1W', '1M', '1Y', 'All']}
+              selectedIndex={periodIndex}
+              onSelect={setPeriodIndex}
+              style={styles.periods}
+            />
+          </>
+        ) : null}
+
+        {isManual ? (
+          <View style={styles.section}>
+            <View style={styles.sectionDivider}>
+              <Caption>Valuations</Caption>
+            </View>
+            {holdingMarks.length > 0 ? (
+              <View style={styles.marks}>
+                {holdingMarks.map((mark, index) => (
+                  <View key={mark.id} style={styles.markRow}>
+                    <Text style={styles.markDate}>{monthYear(mark.date)}</Text>
+                    <Text style={[styles.markValue, index === 0 ? styles.markLatest : null]}>
+                      {money0(mark.value, mark.currency)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.empty}>No marks yet.</Text>
+            )}
+
+            {isAdding ? (
+              <View style={styles.addForm}>
+                <TextInput
+                  accessibilityLabel="New valuation amount"
+                  style={styles.addInput}
+                  value={markInput}
+                  onChangeText={setMarkInput}
+                  placeholder={money0(holding.value, holding.currency)}
+                  placeholderTextColor={Colors.slate}
+                  keyboardType="decimal-pad"
+                  autoFocus
+                  cursorColor={Colors.brass}
+                  selectionColor={Colors.brass}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel"
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  onPress={toggleAdding}>
+                  <Text style={styles.cancel}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Save valuation mark"
+                  style={styles.saveButton}
+                  onPress={saveMark}>
+                  <Text style={styles.saveLabel}>Save</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Add a valuation mark"
+                hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                onPress={toggleAdding}>
+                <Text style={styles.addMark}>Add a valuation mark</Text>
+              </Pressable>
+            )}
+          </View>
+        ) : null}
+
+        {rows.length > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionDivider}>
+              <Caption>{isManual ? 'Position' : 'Provenance'}</Caption>
+            </View>
+            <View style={styles.defList} accessible accessibilityLabel={rowsLabel}>
+              <View style={styles.defLabels}>
+                {rows.map((row) => (
+                  <Text key={row.label} style={styles.defLabel}>
+                    {row.label}
+                  </Text>
+                ))}
+              </View>
+              <View style={styles.defValues}>
+                {rows.map((row) => (
+                  <Text key={row.label} style={[styles.defValue, { color: row.valueColor }]}>
+                    {row.value}
+                  </Text>
+                ))}
+              </View>
             </View>
           </View>
-        </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -311,7 +553,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.manrope,
     fontSize: 15,
     lineHeight: 20,
-    color: Colors.copper,
     fontVariant: ['tabular-nums'],
     marginTop: 6,
   },
@@ -324,7 +565,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginTop: 12,
   },
-  provenance: {
+  section: {
     paddingHorizontal: 24,
     marginTop: 32,
   },
@@ -332,6 +573,80 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.hairline,
     paddingTop: 12,
+  },
+  marks: {
+    marginTop: 14,
+    gap: 12,
+  },
+  markRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+  },
+  markDate: {
+    fontFamily: Fonts.manrope,
+    fontSize: 15,
+    lineHeight: 20,
+    color: Colors.ash,
+  },
+  markValue: {
+    fontFamily: Fonts.manrope,
+    fontSize: 15,
+    lineHeight: 20,
+    color: Colors.ash,
+    fontVariant: ['tabular-nums'],
+  },
+  markLatest: {
+    color: Colors.bone,
+  },
+  empty: {
+    fontFamily: Fonts.manrope,
+    fontSize: 15,
+    lineHeight: 20,
+    color: Colors.slate,
+    marginTop: 14,
+  },
+  addForm: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 20,
+  },
+  addInput: {
+    flex: 1,
+    fontFamily: Fonts.newsreaderLight32,
+    fontSize: 28,
+    lineHeight: 36,
+    color: Colors.bone,
+    fontVariant: ['tabular-nums'],
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.brass,
+  },
+  cancel: {
+    fontFamily: Fonts.manrope,
+    fontSize: 15,
+    color: Colors.ash,
+  },
+  saveButton: {
+    height: 48,
+    paddingHorizontal: 22,
+    backgroundColor: Colors.brass,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveLabel: {
+    fontFamily: Fonts.manropeSemiBold,
+    fontSize: 15,
+    color: Colors.ink,
+  },
+  addMark: {
+    fontFamily: Fonts.manrope,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.brass,
+    marginTop: 20,
   },
   defList: {
     flexDirection: 'row',

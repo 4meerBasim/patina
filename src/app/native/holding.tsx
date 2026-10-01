@@ -1,72 +1,243 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { Glass } from '@/components/native/glass';
-import { GroupedCard, RowSeparator } from '@/components/native/grouped-list';
+import { GroupedCard, KeyValueRow } from '@/components/native/grouped-list';
 import { SegmentedControl } from '@/components/native/segmented-control';
 import { Colors } from '@/constants/theme';
-import { formatCurrency, formatNumber, formatPercent, formatSignedCurrency } from '@/lib/money';
+import type { CurrencyCode, Valuation } from '@/data/types';
+import { formatCurrency, formatNumber, formatPercent, formatSignedCurrency, parseAmount } from '@/lib/money';
 import { moneyWeightedReturn } from '@/lib/returns';
-import { useAccounts, useHoldings, useLots, useNetWorth, useSettings, useTransactions } from '@/store';
+import {
+  useAccounts,
+  useDataActions,
+  useDataStore,
+  useFeeAnalysis,
+  useHoldingMetrics,
+  useHoldings,
+  useNetWorth,
+  useSettings,
+  useTransactions,
+  useYieldOnCost,
+} from '@/store';
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 
-function PositionRow({
-  label,
-  value,
-  valueColor,
-  hasSeparator,
-}: {
-  label: string;
-  value: string;
-  valueColor: string;
-  hasSeparator: boolean;
-}) {
-  return (
-    <View style={styles.positionRow}>
-      <Text style={styles.positionLabel}>{label}</Text>
-      <Text style={[styles.positionValue, { color: valueColor }]}>{value}</Text>
-      {hasSeparator ? <RowSeparator inset={16} /> : null}
-    </View>
-  );
+type MetricRowData = { key: string; label: string; value: string; color: string };
+
+function formatDate(iso: string): string {
+  const [year, month, day] = iso.split('-');
+  return `${MONTHS[Number(month) - 1]} ${Number(day)}, ${year}`;
 }
 
+function valuedCaption(iso: string): string {
+  const [, month, day] = iso.split('-');
+  return `Valued ${MONTHS[Number(month) - 1]} ${Number(day)}`;
+}
+
+const AddValuationRow = memo(function AddValuationRow({
+  holdingId,
+  currency,
+  onAdd,
+}: {
+  holdingId: string;
+  currency: CurrencyCode;
+  onAdd: (input: Omit<Valuation, 'id'>) => Promise<string>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+
+  const openInput = useCallback(() => setOpen(true), []);
+  const submit = useCallback(async () => {
+    const parsed = parseAmount(text);
+    setText('');
+    setOpen(false);
+    if (parsed == null || parsed <= 0) return;
+    await onAdd({ holdingId, date: TODAY_ISO, value: parsed, currency });
+  }, [text, holdingId, currency, onAdd]);
+
+  if (!open) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Add valuation"
+        style={styles.addRow}
+        onPress={openInput}>
+        <Text style={styles.addText}>Add valuation</Text>
+      </Pressable>
+    );
+  }
+  return (
+    <View style={styles.addInputRow}>
+      <TextInput
+        accessibilityLabel="Valuation amount"
+        style={styles.addInput}
+        value={text}
+        onChangeText={setText}
+        autoFocus
+        keyboardType="decimal-pad"
+        placeholder="New value today"
+        placeholderTextColor={Colors.disabled}
+        cursorColor={Colors.brass}
+        selectionColor={Colors.brass}
+        onSubmitEditing={submit}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Save valuation"
+        hitSlop={12}
+        onPress={submit}>
+        <Text style={styles.addText}>Add</Text>
+      </Pressable>
+    </View>
+  );
+});
+
 export default function NativeHolding() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const [period, setPeriod] = useState(2);
   const settings = useSettings();
   const holdings = useHoldings();
-  const lots = useLots();
-  const netWorth = useNetWorth();
   const accounts = useAccounts();
+  const netWorth = useNetWorth();
   const transactions = useTransactions();
+  const positions = useHoldingMetrics();
+  const feeAnalysis = useFeeAnalysis();
+  const yields = useYieldOnCost();
+  const allValuations = useDataStore((state) => state.valuations);
+  const { addValuation } = useDataActions();
 
-  const holding = holdings.find((item) => item.instrument?.symbol === 'AAPL');
+  const baseCurrency = settings.baseCurrency;
+
+  const holding = useMemo(
+    () =>
+      holdings.find((item) => item.id === id) ??
+      holdings.find((item) => item.instrument?.symbol === 'AAPL') ??
+      null,
+    [holdings, id],
+  );
+  const position = useMemo(
+    () => positions.find((item) => item.holdingId === holding?.id) ?? null,
+    [positions, holding],
+  );
+
   const account = accounts.find((item) => item.id === holding?.accountId);
+  const fee = feeAnalysis.holdings.find((item) => item.holdingId === holding?.id);
+  const yoc = yields.find((item) => item.holdingId === holding?.id);
 
-  const shares = holding?.quantity ?? 0;
-  const value = holding?.value ?? 0;
-  const costBasis = lots
-    .filter((lot) => lot.holdingId === holding?.id)
-    .reduce((sum, lot) => sum + lot.remainingQuantity * lot.costPerUnit, 0);
-  const perUnit = shares === 0 ? 0 : costBasis / shares;
-  const gain = value - costBasis;
-  const gainPercent = costBasis === 0 ? 0 : (gain / costBasis) * 100;
+  const isManual = holding ? holding.instrumentId == null : false;
+  const isForeign = position ? position.currency !== baseCurrency : false;
+  const value = position?.value ?? holding?.value ?? 0;
   const weightPercent = netWorth.total === 0 ? 0 : (value / netWorth.total) * 100;
-  const annualised = holding
-    ? moneyWeightedReturn(
-        transactions
-          .filter((tx) => tx.holdingId === holding.id)
-          .map((tx) => ({ date: tx.date, amount: -tx.amount })),
-        { date: TODAY_ISO, value },
-      )
-    : null;
 
-  const title = holding?.instrument?.name ?? '';
-  const meta = holding?.instrument
-    ? `${holding.instrument.symbol} · NASDAQ · ${account?.institution ?? ''}`
-    : '';
+  const holdingValuations = useMemo(
+    () =>
+      allValuations
+        .filter((item) => item.holdingId === holding?.id)
+        .sort((a, b) => Date.parse(b.date) - Date.parse(a.date)),
+    [allValuations, holding],
+  );
+
+  const annualised = useMemo(() => {
+    if (!holding) return null;
+    const flows = transactions
+      .filter((tx) => tx.holdingId === holding.id)
+      .map((tx) => ({ date: tx.date, amount: -tx.amount }));
+    if (flows.length === 0) return null;
+    return moneyWeightedReturn(flows, { date: TODAY_ISO, value });
+  }, [holding, transactions, value]);
+
+  const positionRows = useMemo<MetricRowData[]>(() => {
+    const rows: MetricRowData[] = [];
+    if (!position) return rows;
+    if (!isManual) {
+      rows.push({ key: 'shares', label: 'Shares', value: formatNumber(position.quantity), color: Colors.ash });
+    }
+    if (position.costBasis != null) {
+      rows.push({ key: 'cost', label: 'Cost basis', value: formatCurrency(position.costBasis, baseCurrency), color: Colors.ash });
+    }
+    if (position.averageCost != null) {
+      rows.push({
+        key: 'avg',
+        label: 'Average cost',
+        value: formatCurrency(position.averageCost, position.currency, { minimumFractionDigits: 2 }),
+        color: Colors.ash,
+      });
+    }
+    if (position.unrealisedGain != null && position.unrealisedPercent != null) {
+      rows.push({
+        key: 'unreal',
+        label: 'Unrealized gain',
+        value: `${formatSignedCurrency(position.unrealisedGain, baseCurrency)} · ${formatPercent(position.unrealisedPercent, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`,
+        color: position.unrealisedGain >= 0 ? Colors.verdigris : Colors.copper,
+      });
+    }
+    if (position.realisedGain !== 0) {
+      rows.push({
+        key: 'real',
+        label: 'Realized gain',
+        value: formatSignedCurrency(position.realisedGain, baseCurrency),
+        color: position.realisedGain >= 0 ? Colors.verdigris : Colors.copper,
+      });
+    }
+    if (isForeign && position.marketGain != null) {
+      rows.push({
+        key: 'market',
+        label: 'Market gain',
+        value: formatSignedCurrency(position.marketGain, baseCurrency),
+        color: position.marketGain >= 0 ? Colors.verdigris : Colors.copper,
+      });
+    }
+    if (isForeign && position.currencyGain != null) {
+      rows.push({
+        key: 'fx',
+        label: 'Currency gain',
+        value: formatSignedCurrency(position.currencyGain, baseCurrency),
+        color: position.currencyGain >= 0 ? Colors.verdigris : Colors.copper,
+      });
+    }
+    if (annualised !== null) {
+      rows.push({
+        key: 'irr',
+        label: 'Annualized return',
+        value: formatPercent(annualised * 100, { signed: true, minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+        color: annualised >= 0 ? Colors.verdigris : Colors.copper,
+      });
+    }
+    rows.push({
+      key: 'weight',
+      label: 'Weight',
+      value: formatPercent(weightPercent, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+      color: Colors.ash,
+    });
+    return rows;
+  }, [position, isManual, isForeign, annualised, weightPercent, baseCurrency]);
+
+  const hero = formatCurrency(value, baseCurrency);
+  const decimalAt = hero.lastIndexOf('.');
+  const heroWhole = decimalAt >= 0 ? hero.slice(0, decimalAt) : hero;
+  const heroCents = decimalAt >= 0 ? hero.slice(decimalAt) : '';
+
+  let sublabel = '';
+  if (isForeign && position) sublabel = formatCurrency(position.valueNative, position.currency);
+  else if (isManual && holdingValuations.length > 0) sublabel = valuedCaption(holdingValuations[0].date);
+
+  const unrealisedGain = position?.unrealisedGain ?? null;
+  const unrealisedPercent = position?.unrealisedPercent ?? null;
+  const heroChip =
+    unrealisedGain !== null && unrealisedPercent !== null
+      ? {
+          text: `${formatSignedCurrency(unrealisedGain, baseCurrency)} · ${formatPercent(unrealisedPercent, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`,
+          isGain: unrealisedGain >= 0,
+        }
+      : null;
+
+  const title = holding?.instrument?.name ?? holding?.name ?? '';
+  const accountLabel = account ? (account.institution ?? account.name) : '';
+  const meta = holding?.instrument ? `${holding.instrument.symbol} · ${accountLabel}` : accountLabel;
 
   return (
     <View style={styles.root}>
@@ -101,17 +272,22 @@ export default function NativeHolding() {
 
           <View style={styles.titleBlock}>
             <Text style={styles.largeTitle}>{title}</Text>
-            <Text style={styles.meta}>{meta}</Text>
+            {meta ? <Text style={styles.meta}>{meta}</Text> : null}
           </View>
 
           <View style={styles.heroBlock}>
-            <Text style={styles.date}>Mar 14, 2026</Text>
+            {sublabel ? <Text style={styles.date}>{sublabel}</Text> : null}
             <Text style={styles.heroValue}>
-              $131,204<Text style={styles.heroCents}>.50</Text>
+              {heroWhole}
+              <Text style={styles.heroCents}>{heroCents}</Text>
             </Text>
-            <View style={styles.deltaChip}>
-              <Text style={styles.deltaText}>▼ $17,715 · 11.9% below today</Text>
-            </View>
+            {heroChip ? (
+              <View style={[styles.chip, heroChip.isGain ? styles.gainChip : styles.lossChip]}>
+                <Text style={[styles.chipText, heroChip.isGain ? styles.gainText : styles.lossText]}>
+                  {heroChip.text}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -143,48 +319,85 @@ export default function NativeHolding() {
             selectedIndex={period}
             onSelect={setPeriod}
           />
+
           <Text style={styles.sectionHeader}>Position</Text>
           <GroupedCard>
-            <PositionRow
-              label="Shares"
-              value={formatNumber(shares)}
-              valueColor={Colors.ash}
-              hasSeparator
-            />
-            <PositionRow
-              label="Cost basis"
-              value={`${formatCurrency(costBasis, settings.baseCurrency)} · ${formatCurrency(perUnit, settings.baseCurrency, { minimumFractionDigits: 2 })}`}
-              valueColor={Colors.ash}
-              hasSeparator
-            />
-            <PositionRow
-              label="Unrealized gain"
-              value={`${formatSignedCurrency(gain, settings.baseCurrency)} · ${formatPercent(gainPercent, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`}
-              valueColor={gain >= 0 ? Colors.verdigris : Colors.copper}
-              hasSeparator
-            />
-            {annualised !== null ? (
-              <PositionRow
-                label="Annualized return"
-                value={formatPercent(annualised * 100, {
-                  signed: true,
-                  minimumFractionDigits: 1,
-                  maximumFractionDigits: 1,
-                })}
-                valueColor={annualised >= 0 ? Colors.verdigris : Colors.copper}
-                hasSeparator
+            {positionRows.map((row, index) => (
+              <KeyValueRow
+                key={row.key}
+                label={row.label}
+                value={row.value}
+                valueColor={row.color}
+                hasSeparator={index < positionRows.length - 1}
               />
-            ) : null}
-            <PositionRow
-              label="Weight"
-              value={formatPercent(weightPercent, {
-                minimumFractionDigits: 1,
-                maximumFractionDigits: 1,
-              })}
-              valueColor={Colors.ash}
-              hasSeparator={false}
-            />
+            ))}
           </GroupedCard>
+
+          {yoc ? (
+            <>
+              <Text style={styles.sectionHeader}>Income</Text>
+              <GroupedCard>
+                <KeyValueRow
+                  label="Yield on cost"
+                  value={formatPercent(yoc.yieldOnCost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  valueColor={Colors.bone}
+                  hasSeparator
+                />
+                <KeyValueRow
+                  label="Trailing 12-mo income"
+                  value={formatCurrency(yoc.trailingIncome, baseCurrency)}
+                  hasSeparator={false}
+                />
+              </GroupedCard>
+            </>
+          ) : null}
+
+          {fee ? (
+            <>
+              <Text style={styles.sectionHeader}>Fees</Text>
+              <GroupedCard>
+                <KeyValueRow
+                  label="Expense ratio"
+                  value={formatPercent(fee.ratio * 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  hasSeparator
+                />
+                <KeyValueRow
+                  label="Annual cost"
+                  value={formatCurrency(fee.annualCost, baseCurrency)}
+                  valueColor={Colors.copper}
+                  hasSeparator
+                />
+                <KeyValueRow
+                  label="Projected 10-year cost"
+                  value={formatCurrency(fee.drag10, baseCurrency)}
+                  valueColor={Colors.copper}
+                  hasSeparator={false}
+                />
+              </GroupedCard>
+            </>
+          ) : null}
+
+          {holding && isManual ? (
+            <>
+              <Text style={styles.sectionHeader}>Valuations</Text>
+              <GroupedCard>
+                {holdingValuations.map((valuation) => (
+                  <KeyValueRow
+                    key={valuation.id}
+                    label={formatDate(valuation.date)}
+                    value={formatCurrency(valuation.value, valuation.currency)}
+                    valueColor={Colors.bone}
+                    hasSeparator
+                  />
+                ))}
+                <AddValuationRow
+                  holdingId={holding.id}
+                  currency={holding.currency}
+                  onAdd={addValuation}
+                />
+              </GroupedCard>
+            </>
+          ) : null}
         </View>
       </ScrollView>
     </View>
@@ -252,20 +465,30 @@ const styles = StyleSheet.create({
     color: Colors.slate,
     fontWeight: '500',
   },
-  deltaChip: {
+  chip: {
     alignSelf: 'flex-start',
     marginTop: 6,
-    backgroundColor: Colors.lossTint,
     borderRadius: 8,
     paddingVertical: 3,
     paddingHorizontal: 8,
   },
-  deltaText: {
+  gainChip: {
+    backgroundColor: Colors.gainTint,
+  },
+  lossChip: {
+    backgroundColor: Colors.lossTint,
+  },
+  chipText: {
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '600',
-    color: Colors.copper,
     fontVariant: ['tabular-nums'],
+  },
+  gainText: {
+    color: Colors.verdigris,
+  },
+  lossText: {
+    color: Colors.copper,
   },
   chart: {
     width: '100%',
@@ -284,25 +507,33 @@ const styles = StyleSheet.create({
     color: Colors.slate,
     marginTop: 24,
     marginBottom: 8,
-    marginLeft: 16,
+    marginStart: 16,
   },
-  positionRow: {
+  addRow: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  addInputRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
     minHeight: 48,
     paddingHorizontal: 16,
   },
-  positionLabel: {
+  addInput: {
+    flex: 1,
     fontSize: 17,
     lineHeight: 22,
     fontWeight: '400',
     color: Colors.bone,
+    padding: 0,
+    fontVariant: ['tabular-nums'],
   },
-  positionValue: {
+  addText: {
     fontSize: 17,
     lineHeight: 22,
     fontWeight: '400',
-    fontVariant: ['tabular-nums'],
+    color: Colors.brass,
   },
 });
