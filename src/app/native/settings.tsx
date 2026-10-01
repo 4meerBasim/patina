@@ -7,6 +7,8 @@ import { Colors } from '@/constants/theme';
 import type { Locale, NumeralSystem } from '@/data/settings';
 import { CURRENCIES } from '@/data/types';
 import { toArabicNumerals } from '@/lib/money';
+import { useBiometricSetting } from '@/lib/use-biometric-setting';
+import { useDataManagement } from '@/lib/use-data-management';
 import { useDataActions, useSettings } from '@/store';
 
 const LOCALE_LABEL: Record<Locale, string> = {
@@ -84,9 +86,41 @@ function NavRow({
   );
 }
 
+function ActionRow({
+  label,
+  destructive,
+  hint,
+  onPress,
+  hasSeparator,
+}: {
+  label: string;
+  destructive?: boolean;
+  hint?: string;
+  onPress: () => void;
+  hasSeparator: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      hitSlop={8}
+      style={styles.actionRow}
+      onPress={onPress}>
+      <Text style={[styles.actionLabel, destructive ? styles.actionLabelDestructive : null]}>
+        {label}
+      </Text>
+      {hasSeparator ? <RowSeparator inset={16} /> : null}
+    </Pressable>
+  );
+}
+
 export default function NativeSettings() {
   const settings = useSettings();
   const { updateSettings } = useDataActions();
+  const { enabled: biometricEnabled, available: biometricAvailable, setEnabled: setBiometricEnabled } =
+    useBiometricSetting();
+  const { exportData, importData, confirmDelete } = useDataManagement();
 
   const cycleLocale = () =>
     void updateSettings({ locale: settings.locale === 'en' ? 'ar' : 'en' });
@@ -171,13 +205,30 @@ export default function NativeSettings() {
             <RowSeparator inset={16} />
           </View>
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Face ID</Text>
-            <Switch
-              value={settings.biometricLock}
-              onValueChange={(next) => void updateSettings({ biometricLock: next })}
-              accessibilityLabel="Face ID"
-            />
+            <Text style={styles.switchLabel}>App lock</Text>
+            {biometricAvailable === false ? (
+              <Text style={styles.unavailable}>Unavailable</Text>
+            ) : (
+              <Switch
+                value={biometricEnabled}
+                onValueChange={(next) => void setBiometricEnabled(next)}
+                accessibilityLabel="App lock"
+              />
+            )}
           </View>
+        </GroupedCard>
+
+        <Text style={styles.sectionHeader}>Data</Text>
+        <GroupedCard>
+          <ActionRow label="Export all data" onPress={() => void exportData()} hasSeparator />
+          <ActionRow label="Import data" onPress={() => void importData()} hasSeparator />
+          <ActionRow
+            label="Delete all data"
+            destructive
+            hint="Permanently removes all data on this device"
+            onPress={confirmDelete}
+            hasSeparator={false}
+          />
         </GroupedCard>
       </ScrollView>
     </View>
@@ -307,5 +358,27 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: '400',
     color: Colors.bone,
+  },
+  unavailable: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '400',
+    color: Colors.ash,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 48,
+    paddingHorizontal: 16,
+  },
+  actionLabel: {
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '400',
+    color: Colors.bone,
+  },
+  actionLabelDestructive: {
+    color: Colors.destructive,
   },
 });

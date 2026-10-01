@@ -10,6 +10,8 @@ import Animated, {
 import { Caption } from '@/components/editorial/caption';
 import { useLocale } from '@/components/editorial/locale';
 import { Colors, Fonts } from '@/constants/theme';
+import { useBiometricSetting } from '@/lib/use-biometric-setting';
+import { useDataManagement } from '@/lib/use-data-management';
 import { useDataActions, useSettings } from '@/store';
 
 function appearanceLabel(appearance: string): string {
@@ -45,8 +47,11 @@ function Toggle({ isOn, onToggle, label }: { isOn: boolean; onToggle: () => void
 
 export default function SettingsScreen() {
   const { locale, setLocale } = useLocale();
-  const { baseCurrency, appearance, privacyBlur, biometricLock } = useSettings();
+  const { baseCurrency, appearance, privacyBlur } = useSettings();
   const { updateSettings } = useDataActions();
+  const { enabled: biometricEnabled, available: biometricAvailable, setEnabled: setBiometricEnabled } =
+    useBiometricSetting();
+  const { exportData, importData, confirmDelete } = useDataManagement();
 
   return (
     <ScrollView
@@ -110,16 +115,43 @@ export default function SettingsScreen() {
         />
       </View>
       <View style={[styles.row, styles.rowDivided]}>
-        <Text style={styles.rowLabel}>Face ID</Text>
-        <Toggle
-          isOn={biometricLock}
-          onToggle={() => void updateSettings({ biometricLock: !biometricLock })}
-          label="Face ID"
-        />
+        <Text style={styles.rowLabel}>App lock</Text>
+        {biometricAvailable === false ? (
+          <Text style={styles.rowValue}>Unavailable</Text>
+        ) : (
+          <Toggle
+            isOn={biometricEnabled}
+            onToggle={() => void setBiometricEnabled(!biometricEnabled)}
+            label="App lock"
+          />
+        )}
       </View>
 
-      <View style={styles.spacer} />
-      <Text style={styles.danger}>Export all data · Delete account</Text>
+      <Caption style={styles.sectionCaption}>Data</Caption>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Export all data"
+        accessibilityHint="Writes a backup and opens the share sheet"
+        style={styles.row}
+        onPress={() => void exportData()}>
+        <Text style={styles.rowLabel}>Export all data</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Import data"
+        accessibilityHint="Replaces all data with a chosen backup file"
+        style={[styles.row, styles.rowDivided]}
+        onPress={() => void importData()}>
+        <Text style={styles.rowLabel}>Import data</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Delete all data"
+        accessibilityHint="Permanently removes all data on this device"
+        style={[styles.row, styles.rowDivided]}
+        onPress={confirmDelete}>
+        <Text style={styles.dangerLabel}>Delete all data</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -226,13 +258,9 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
   },
-  spacer: {
-    flex: 1,
-  },
-  danger: {
+  dangerLabel: {
     fontFamily: Fonts.manrope,
     fontSize: 15,
-    lineHeight: 20,
     color: Colors.destructive,
   },
 });
