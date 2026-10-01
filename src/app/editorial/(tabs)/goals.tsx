@@ -2,24 +2,42 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Caption } from '@/components/editorial/caption';
 import { Colors, Fonts } from '@/constants/theme';
+import { formatCurrency, formatNumber } from '@/lib/money';
+import { useGoalProgress, useSettings } from '@/store';
 
 export default function GoalsScreen() {
+  const goals = useGoalProgress();
+  const { baseCurrency } = useSettings();
+
+  const money = (value: number) =>
+    formatCurrency(value, baseCurrency, {
+      locale: 'en',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+  const lisbon = goals[0];
+  const education = goals[1];
+  const expenses = goals[2];
+  const pct = (percent: number) => `${formatNumber(Math.round(percent))}%`;
+  const width = (percent: number): `${number}%` => `${Math.round(percent)}%`;
+
   return (
     <View style={styles.screen}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <Caption>Goals · 3</Caption>
+        <Caption>Goals · {formatNumber(goals.length)}</Caption>
 
         <View>
-          <Text style={styles.title}>Second home, Lisbon</Text>
+          <Text style={styles.title}>{lisbon.goal.name}</Text>
           <View style={styles.track}>
-            <View style={[styles.fill, { width: '58%' }]} />
+            <View style={[styles.fill, { width: width(lisbon.percent) }]} />
             <View style={styles.marker} />
           </View>
           <View style={styles.amountRow}>
             <Text style={styles.amount}>
-              $348,000 <Text style={styles.slate}>of $600,000</Text>
+              {money(lisbon.goal.savedAmount)}{' '}
+              <Text style={styles.slate}>of {money(lisbon.goal.target)}</Text>
             </Text>
-            <Text style={styles.amount}>58%</Text>
+            <Text style={styles.amount}>{pct(lisbon.percent)}</Text>
           </View>
           <Text style={styles.detail}>
             Target Jun 2028 · projected <Text style={styles.verdigris}>Feb 2028, ahead</Text>
@@ -28,16 +46,17 @@ export default function GoalsScreen() {
         </View>
 
         <View>
-          <Text style={styles.title}>Children&apos;s education</Text>
+          <Text style={styles.title}>{education.goal.name}</Text>
           <View style={styles.track}>
-            <View style={[styles.fill, { width: '31%' }]} />
+            <View style={[styles.fill, { width: width(education.percent) }]} />
             <View style={styles.marker} />
           </View>
           <View style={styles.amountRow}>
             <Text style={styles.amount}>
-              $62,000 <Text style={styles.slate}>of $200,000</Text>
+              {money(education.goal.savedAmount)}{' '}
+              <Text style={styles.slate}>of {money(education.goal.target)}</Text>
             </Text>
-            <Text style={styles.amount}>31%</Text>
+            <Text style={styles.amount}>{pct(education.percent)}</Text>
           </View>
           <Text style={styles.detail}>
             Target Sep 2034 · projected <Text style={styles.copper}>Mar 2036, behind</Text>
@@ -46,16 +65,17 @@ export default function GoalsScreen() {
         </View>
 
         <View>
-          <Text style={styles.title}>Twelve months of expenses</Text>
+          <Text style={styles.title}>{expenses.goal.name}</Text>
           <View style={styles.track}>
-            <View style={[styles.fill, { width: '86%' }]} />
+            <View style={[styles.fill, { width: width(expenses.percent) }]} />
             <View style={styles.marker} />
           </View>
           <View style={styles.amountRow}>
             <Text style={styles.amount}>
-              $77,096 <Text style={styles.slate}>of $90,000</Text>
+              {money(expenses.goal.savedAmount)}{' '}
+              <Text style={styles.slate}>of {money(expenses.goal.target)}</Text>
             </Text>
-            <Text style={styles.amount}>86%</Text>
+            <Text style={styles.amount}>{pct(expenses.percent)}</Text>
           </View>
           <Text style={styles.detail}>
             No date · <Text style={styles.stone}>on pace</Text>

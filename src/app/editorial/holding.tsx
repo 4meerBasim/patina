@@ -14,20 +14,124 @@ import Svg, {
 import { Caption } from '@/components/editorial/caption';
 import { PeriodSelector } from '@/components/editorial/period-selector';
 import { Colors, Fonts } from '@/constants/theme';
+import {
+  formatCurrency,
+  formatNumber,
+  formatPercent,
+  formatSignedCurrency,
+} from '@/lib/money';
+import { moneyWeightedReturn } from '@/lib/returns';
+import { useHoldings, useLots, useNetWorth, useSettings, useTransactions } from '@/store';
+
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
 
 const chartPath =
   'M0 170 C40 160 60 178 100 150 S150 120 180 140 S220 90 260 100 S320 60 360 66 L402 50';
 
-const provenanceRows: { label: string; value: string; valueColor: string }[] = [
-  { label: 'Quantity', value: '600 shares', valueColor: Colors.bone },
-  { label: 'Cost basis', value: '$98,640 · $164.40 avg', valueColor: Colors.bone },
-  { label: 'Unrealised', value: '▲ +$50,280 · 51.0%', valueColor: Colors.verdigris },
-  { label: 'First acquired', value: 'Nov 2021', valueColor: Colors.bone },
-  { label: 'Weight', value: '11.6% of net worth', valueColor: Colors.bone },
+const MONTH_ABBREV = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
+
+function monthYear(iso: string): string {
+  const [year, month] = iso.split('-');
+  return `${MONTH_ABBREV[Number(month) - 1]} ${year}`;
+}
 
 export default function HoldingScreen() {
   const [periodIndex, setPeriodIndex] = useState(2);
+  const holdings = useHoldings();
+  const lots = useLots();
+  const netWorth = useNetWorth();
+  const transactions = useTransactions();
+  const { baseCurrency } = useSettings();
+
+  const money0 = (value: number) =>
+    formatCurrency(value, baseCurrency, {
+      locale: 'en',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+  const money2 = (value: number) =>
+    formatCurrency(value, baseCurrency, {
+      locale: 'en',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const holding = holdings.find((item) => item.instrument?.symbol === 'AAPL');
+  const holdingLots = lots.filter((lot) => lot.holdingId === holding?.id);
+  const quantity = holding?.quantity ?? 0;
+  const value = holding?.value ?? 0;
+  const costBasis = holdingLots.reduce((sum, lot) => sum + lot.quantity * lot.costPerUnit, 0);
+  const avgCost = quantity > 0 ? costBasis / quantity : 0;
+  const unrealised = value - costBasis;
+  const unrealisedPct = costBasis > 0 ? (unrealised / costBasis) * 100 : 0;
+  const firstAcquired = holdingLots.reduce<string | null>(
+    (earliest, lot) =>
+      earliest === null || lot.acquiredAt < earliest ? lot.acquiredAt : earliest,
+    null,
+  );
+  const weight = netWorth.total > 0 ? (value / netWorth.total) * 100 : 0;
+
+  const annualised = holding
+    ? moneyWeightedReturn(
+        transactions
+          .filter((tx) => tx.holdingId === holding.id)
+          .map((tx) => ({ date: tx.date, amount: -tx.amount })),
+        { date: TODAY_ISO, value },
+      )
+    : null;
+
+  const provenanceRows: { label: string; value: string; valueColor: string }[] = [
+    { label: 'Quantity', value: `${formatNumber(quantity)} shares`, valueColor: Colors.bone },
+    {
+      label: 'Cost basis',
+      value: `${money0(costBasis)} · ${money2(avgCost)} avg`,
+      valueColor: Colors.bone,
+    },
+    {
+      label: 'Unrealised',
+      value: `${unrealised >= 0 ? '▲' : '▼'} ${formatSignedCurrency(unrealised, baseCurrency, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      })} · ${formatPercent(unrealisedPct, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`,
+      valueColor: unrealised >= 0 ? Colors.verdigris : Colors.copper,
+    },
+    ...(annualised !== null
+      ? [
+          {
+            label: 'Annualised return',
+            value: formatPercent(annualised * 100, {
+              signed: true,
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            }),
+            valueColor: annualised >= 0 ? Colors.verdigris : Colors.copper,
+          },
+        ]
+      : []),
+    {
+      label: 'First acquired',
+      value: firstAcquired ? monthYear(firstAcquired) : '',
+      valueColor: Colors.bone,
+    },
+    {
+      label: 'Weight',
+      value: `${formatPercent(weight, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} of net worth`,
+      valueColor: Colors.bone,
+    },
+  ];
   const provenanceLabel = provenanceRows.map((row) => `${row.label}, ${row.value}`).join('. ');
 
   return (

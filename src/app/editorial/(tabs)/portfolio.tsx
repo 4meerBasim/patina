@@ -6,6 +6,9 @@ import Svg, { Line, Path } from 'react-native-svg';
 import { Caption } from '@/components/editorial/caption';
 import { Monogram } from '@/components/editorial/monogram';
 import { AssetClassColors, Colors, Fonts } from '@/constants/theme';
+import type { AssetClass } from '@/data/types';
+import { formatCurrency } from '@/lib/money';
+import { useAllocation, useHoldings, useNetWorth, useSettings } from '@/store';
 
 function Sparkline({
   d,
@@ -121,11 +124,46 @@ export default function PortfolioScreen() {
   const [isStocksExpanded, setIsStocksExpanded] = useState(true);
   const otherSegmentOpacity = isStocksExpanded ? 0.32 : 1;
 
+  const netWorth = useNetWorth();
+  const allocation = useAllocation();
+  const holdings = useHoldings();
+  const { baseCurrency } = useSettings();
+
+  const money = (value: number) =>
+    formatCurrency(value, baseCurrency, {
+      locale: 'en',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+  const sliceOf = (assetClass: AssetClass) =>
+    allocation.find((slice) => slice.assetClass === assetClass);
+  const weightOf = (assetClass: AssetClass) => Math.round(sliceOf(assetClass)?.weight ?? 0);
+  const valueOf = (assetClass: AssetClass) => sliceOf(assetClass)?.value ?? 0;
+  const inClass = (assetClass: AssetClass) =>
+    holdings.filter((holding) => holding.assetClass === assetClass);
+
+  const stockHoldings = inClass('stocks');
+  const topStocks = stockHoldings.slice(0, 3);
+  const moreStocks = stockHoldings.length - topStocks.length;
+  const propertyCount = inClass('property').length;
+  const cashAccounts = new Set(inClass('cash').map((holding) => holding.accountId)).size;
+
+  const stockSparklines = [
+    <Sparkline key="s0" d="M0 12 L8 10 L16 11 L24 7 L32 8 L40 4 L48 3" stroke={Colors.verdigris} />,
+    <Sparkline key="s1" d="M0 10 L8 8 L16 9 L24 6 L32 7 L40 5 L48 5" stroke={Colors.verdigris} />,
+    <Sparkline
+      key="s2"
+      d="M0 6 L8 7 L16 6 L24 9 L32 8 L40 11 L48 10"
+      stroke={Colors.copper}
+      hasBaseline
+    />,
+  ];
+
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Caption>Portfolio · 5 classes · 23 holdings</Caption>
-        <Text style={styles.total}>$1,284,930</Text>
+        <Text style={styles.total}>{money(netWorth.total)}</Text>
 
         <Pressable
           accessibilityRole="button"
@@ -133,35 +171,16 @@ export default function PortfolioScreen() {
           hitSlop={{ top: 20, bottom: 20 }}
           style={styles.allocationBar}
           onPress={() => router.push('/editorial/allocation')}>
-          <View style={{ flex: 46, backgroundColor: AssetClassColors.stocks }} />
-          <View
-            style={{
-              flex: 9,
-              backgroundColor: AssetClassColors.crypto,
-              opacity: otherSegmentOpacity,
-            }}
-          />
-          <View
-            style={{
-              flex: 31,
-              backgroundColor: AssetClassColors.property,
-              opacity: otherSegmentOpacity,
-            }}
-          />
-          <View
-            style={{
-              flex: 6,
-              backgroundColor: AssetClassColors.cash,
-              opacity: otherSegmentOpacity,
-            }}
-          />
-          <View
-            style={{
-              flex: 8,
-              backgroundColor: AssetClassColors.savings,
-              opacity: otherSegmentOpacity,
-            }}
-          />
+          {allocation.map((slice) => (
+            <View
+              key={slice.assetClass}
+              style={{
+                flex: Math.round(slice.weight),
+                backgroundColor: AssetClassColors[slice.assetClass],
+                opacity: slice.assetClass === 'stocks' ? 1 : otherSegmentOpacity,
+              }}
+            />
+          ))}
         </Pressable>
 
         <View style={styles.list}>
@@ -169,9 +188,9 @@ export default function PortfolioScreen() {
             label="S"
             isSelected={isStocksExpanded}
             name="Stocks"
-            detail="46% · 11 holdings"
+            detail={`${weightOf('stocks')}% · ${stockHoldings.length} holdings`}
             detailColor={Colors.slate}
-            value="$591,068"
+            value={money(valueOf('stocks'))}
             delta="▲ 1.4%"
             deltaColor={Colors.verdigris}
             accessibilityState={{ expanded: isStocksExpanded }}
@@ -180,45 +199,19 @@ export default function PortfolioScreen() {
 
           {isStocksExpanded && (
             <View style={styles.holdings}>
-              <HoldingRow
-                name="Apple"
-                ticker="AAPL"
-                value="$148,920"
-                sparkline={
-                  <Sparkline
-                    d="M0 12 L8 10 L16 11 L24 7 L32 8 L40 4 L48 3"
-                    stroke={Colors.verdigris}
-                  />
-                }
-                onPress={() => router.push('/editorial/holding')}
-              />
-              <HoldingRow
-                name="Microsoft"
-                ticker="MSFT"
-                value="$121,340"
-                hasBorder
-                sparkline={
-                  <Sparkline
-                    d="M0 10 L8 8 L16 9 L24 6 L32 7 L40 5 L48 5"
-                    stroke={Colors.verdigris}
-                  />
-                }
-              />
-              <HoldingRow
-                name="Vanguard Total"
-                ticker="VTI"
-                value="$98,410"
-                hasBorder
-                sparkline={
-                  <Sparkline
-                    d="M0 6 L8 7 L16 6 L24 9 L32 8 L40 11 L48 10"
-                    stroke={Colors.copper}
-                    hasBaseline
-                  />
-                }
-              />
+              {topStocks.map((holding, index) => (
+                <HoldingRow
+                  key={holding.id}
+                  name={holding.instrument?.name ?? ''}
+                  ticker={holding.instrument?.symbol ?? ''}
+                  value={money(holding.value)}
+                  hasBorder={index > 0}
+                  sparkline={stockSparklines[index]}
+                  onPress={index === 0 ? () => router.push('/editorial/holding') : undefined}
+                />
+              ))}
               <View style={[styles.moreRow, styles.rowBorder]}>
-                <Text style={styles.moreText}>8 more holdings</Text>
+                <Text style={styles.moreText}>{moreStocks} more holdings</Text>
               </View>
             </View>
           )}
@@ -226,27 +219,27 @@ export default function PortfolioScreen() {
           <ClassRow
             label="C"
             name="Crypto"
-            detail="9% · 4pt above target"
+            detail={`${weightOf('crypto')}% · 4pt above target`}
             detailColor={Colors.copper}
-            value="$115,644"
+            value={money(valueOf('crypto'))}
             delta="▼ 2.1%"
             deltaColor={Colors.copper}
           />
           <ClassRow
             label="RE"
             name="Real estate"
-            detail="31% · 2 properties"
+            detail={`${weightOf('property')}% · ${propertyCount} properties`}
             detailColor={Colors.slate}
-            value="$398,328"
+            value={money(valueOf('property'))}
             delta="— valued Jun"
             deltaColor={Colors.stone}
           />
           <ClassRow
             label="$"
             name="Cash"
-            detail="6% · 3 accounts"
+            detail={`${weightOf('cash')}% · ${cashAccounts} accounts`}
             detailColor={Colors.slate}
-            value="$77,096"
+            value={money(valueOf('cash'))}
             delta="— unchanged"
             deltaColor={Colors.stone}
           />

@@ -5,112 +5,61 @@ import Svg, { Path } from 'react-native-svg';
 
 import { Caption } from '@/components/editorial/caption';
 import { Colors, Fonts } from '@/constants/theme';
-
-type ActivityRow = {
-  type: string;
-  holding: string;
-  date: string;
-  isoDate: string;
-  account: string;
-  detail: string;
-  amount: string;
-  amountValue: number | null;
-  isMuted?: boolean;
-};
-
-type ActivityMonth = {
-  name: string;
-  net: string;
-  rows: ActivityRow[];
-};
-
-const MONTHS: ActivityMonth[] = [
-  {
-    name: 'September',
-    net: 'net −$9,118.60',
-    rows: [
-      {
-        type: 'Buy',
-        holding: 'Apple',
-        date: '17 Sept',
-        isoDate: '2026-09-17',
-        account: 'IBKR',
-        detail: '50 @ 248.20',
-        amount: '−12,410.00',
-        amountValue: -12410,
-      },
-      {
-        type: 'Dividend',
-        holding: 'Microsoft',
-        date: '12 Sept',
-        isoDate: '2026-09-12',
-        account: 'IBKR',
-        detail: '',
-        amount: '184.20',
-        amountValue: 184.2,
-      },
-      {
-        type: 'Deposit',
-        holding: 'Savings',
-        date: '1 Sept',
-        isoDate: '2026-09-01',
-        account: 'Marcus',
-        detail: 'monthly',
-        amount: '2,500.00',
-        amountValue: 2500,
-      },
-      {
-        type: 'Valuation',
-        holding: 'Lisbon flat',
-        date: '1 Sept',
-        isoDate: '2026-09-01',
-        account: 'manual',
-        detail: '412,000',
-        amount: '—',
-        amountValue: null,
-        isMuted: true,
-      },
-      {
-        type: 'Fee',
-        holding: 'Fidelity',
-        date: '1 Sept',
-        isoDate: '2026-09-01',
-        account: '',
-        detail: 'quarterly',
-        amount: '−392.80',
-        amountValue: -392.8,
-      },
-    ],
-  },
-  {
-    name: 'August',
-    net: 'net +$4,212.40',
-    rows: [
-      {
-        type: 'Sell',
-        holding: 'Ether',
-        date: '28 Aug',
-        isoDate: '2026-08-28',
-        account: 'Coinbase',
-        detail: '1.2 @ 3,410',
-        amount: '4,092.00',
-        amountValue: 4092,
-      },
-    ],
-  },
-];
+import type { Transaction, TransactionType } from '@/data/types';
+import { formatNumber, formatSignedCurrency } from '@/lib/money';
+import { useAccounts, useHoldings, useSettings, useTransactions } from '@/store';
 
 type FilterKey = 'all' | 'buys' | 'dividends' | 'deposits';
 
-const FILTERS: { key: FilterKey; label: string; type?: string }[] = [
+const FILTERS: { key: FilterKey; label: string; type?: TransactionType }[] = [
   { key: 'all', label: 'All' },
-  { key: 'buys', label: 'Buys', type: 'Buy' },
-  { key: 'dividends', label: 'Dividends', type: 'Dividend' },
-  { key: 'deposits', label: 'Deposits', type: 'Deposit' },
+  { key: 'buys', label: 'Buys', type: 'buy' },
+  { key: 'dividends', label: 'Dividends', type: 'dividend' },
+  { key: 'deposits', label: 'Deposits', type: 'deposit' },
 ];
 
-function rowSubtitle(row: ActivityRow) {
-  return [row.date, row.account, row.detail].filter(Boolean).join(' · ');
+const MONTH_FULL = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+const MONTH_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sept',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+function monthTitle(iso: string): string {
+  const [year, month] = iso.split('-');
+  return `${MONTH_FULL[Number(month) - 1]} ${year}`;
+}
+
+function shortDate(iso: string): string {
+  const [, month, day] = iso.split('-');
+  return `${Number(day)} ${MONTH_SHORT[Number(month) - 1]}`;
+}
+
+function typeLabel(type: TransactionType): string {
+  return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
 function csvField(value: string) {
@@ -119,21 +68,49 @@ function csvField(value: string) {
 
 export default function ActivityScreen() {
   const [filter, setFilter] = useState<FilterKey>('all');
-  const activeType = FILTERS.find((item) => item.key === filter)?.type;
+  const transactions = useTransactions();
+  const holdings = useHoldings();
+  const accounts = useAccounts();
+  const { baseCurrency } = useSettings();
 
-  const visibleRows = (month: ActivityMonth) =>
-    activeType ? month.rows.filter((row) => row.type === activeType) : month.rows;
+  const activeType = FILTERS.find((item) => item.key === filter)?.type;
+  const visible = activeType
+    ? transactions.filter((tx) => tx.type === activeType)
+    : transactions;
+
+  const subjectOf = (tx: Transaction) => {
+    if (tx.holdingId) {
+      const holding = holdings.find((item) => item.id === tx.holdingId);
+      return holding?.instrument?.name ?? holding?.name ?? '';
+    }
+    return accounts.find((item) => item.id === tx.accountId)?.name ?? '';
+  };
+  const accountOf = (tx: Transaction) => {
+    const account = accounts.find((item) => item.id === tx.accountId);
+    return account?.institution ?? account?.name ?? '';
+  };
+  const detailOf = (tx: Transaction) => {
+    if ((tx.type === 'buy' || tx.type === 'sell') && tx.quantity != null && tx.price != null) {
+      return `${formatNumber(tx.quantity)} @ ${formatNumber(tx.price, { maximumFractionDigits: 2 })}`;
+    }
+    return tx.note ?? '';
+  };
+  const amountOf = (tx: Transaction) =>
+    formatNumber(tx.amount, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const subtitleOf = (tx: Transaction) =>
+    [shortDate(tx.date), accountOf(tx), detailOf(tx)].filter(Boolean).join(' · ');
+
+  const groups: { key: string; rows: Transaction[] }[] = [];
+  for (const tx of visible) {
+    const key = tx.date.slice(0, 7);
+    const existing = groups.find((group) => group.key === key);
+    if (existing) existing.rows.push(tx);
+    else groups.push({ key, rows: [tx] });
+  }
 
   const onExport = () => {
-    const lines = MONTHS.flatMap(visibleRows).map((row) =>
-      [
-        row.isoDate,
-        row.type,
-        row.holding,
-        row.account,
-        row.detail,
-        row.amountValue === null ? '' : row.amountValue.toFixed(2),
-      ]
+    const lines = visible.map((tx) =>
+      [tx.date, typeLabel(tx.type), subjectOf(tx), accountOf(tx), detailOf(tx), tx.amount.toFixed(2)]
         .map(csvField)
         .join(','),
     );
@@ -166,7 +143,7 @@ export default function ActivityScreen() {
           </Pressable>
         </View>
 
-        <Caption style={styles.entries}>Activity · 148 entries</Caption>
+        <Caption style={styles.entries}>Activity · {formatNumber(transactions.length)} entries</Caption>
 
         <View style={styles.chips}>
           {FILTERS.map((item) => {
@@ -187,26 +164,28 @@ export default function ActivityScreen() {
           })}
         </View>
 
-        {MONTHS.map((month) => {
-          const rows = visibleRows(month);
-          if (rows.length === 0) return null;
+        {groups.map((group) => {
+          const net = group.rows.reduce((sum, tx) => sum + tx.amount, 0);
           return (
-            <View key={month.name}>
+            <View key={group.key}>
               <View style={styles.monthHeader}>
-                <Caption>{month.name}</Caption>
-                <Caption style={styles.net}>{month.net}</Caption>
+                <Caption>{monthTitle(group.key)}</Caption>
+                <Caption style={styles.net}>
+                  net {formatSignedCurrency(net, baseCurrency, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </Caption>
               </View>
-              {rows.map((row) => (
-                <View key={`${month.name}-${row.type}-${row.holding}`} style={styles.row}>
+              {group.rows.map((tx) => (
+                <View key={tx.id} style={styles.row}>
                   <View style={styles.rowText}>
                     <Text style={styles.rowTitle}>
-                      {row.type} · {row.holding}
+                      {typeLabel(tx.type)} · {subjectOf(tx)}
                     </Text>
-                    <Text style={styles.rowSub}>{rowSubtitle(row)}</Text>
+                    <Text style={styles.rowSub}>{subtitleOf(tx)}</Text>
                   </View>
-                  <Text style={[styles.rowAmount, row.isMuted && styles.rowAmountMuted]}>
-                    {row.amount}
-                  </Text>
+                  <Text style={styles.rowAmount}>{amountOf(tx)}</Text>
                 </View>
               ))}
             </View>
@@ -296,8 +275,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.bone,
     fontVariant: ['tabular-nums'],
-  },
-  rowAmountMuted: {
-    color: Colors.stone,
   },
 });

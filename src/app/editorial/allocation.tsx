@@ -4,9 +4,11 @@ import Svg, { Circle, G } from 'react-native-svg';
 
 import { Caption } from '@/components/editorial/caption';
 import { AssetClassColors, Colors, Fonts } from '@/constants/theme';
+import type { AssetClass } from '@/data/types';
+import { useAllocation } from '@/store';
 
 type AllocationClass = {
-  key: string;
+  key: AssetClass;
   name: string;
   color: string;
   actual: number;
@@ -15,12 +17,11 @@ type AllocationClass = {
   dashOffset: number;
 };
 
-const CLASSES: AllocationClass[] = [
+const CLASS_META: Omit<AllocationClass, 'actual'>[] = [
   {
     key: 'stocks',
     name: 'Stocks',
     color: AssetClassColors.stocks,
-    actual: 46,
     target: 40,
     dashArray: '299 691',
     dashOffset: 0,
@@ -29,7 +30,6 @@ const CLASSES: AllocationClass[] = [
     key: 'crypto',
     name: 'Crypto',
     color: AssetClassColors.crypto,
-    actual: 9,
     target: 5,
     dashArray: '59 691',
     dashOffset: -307,
@@ -38,7 +38,6 @@ const CLASSES: AllocationClass[] = [
     key: 'property',
     name: 'Real estate',
     color: AssetClassColors.property,
-    actual: 31,
     target: 35,
     dashArray: '202 691',
     dashOffset: -374,
@@ -47,7 +46,6 @@ const CLASSES: AllocationClass[] = [
     key: 'cash',
     name: 'Cash',
     color: AssetClassColors.cash,
-    actual: 6,
     target: 10,
     dashArray: '39 691',
     dashOffset: -584,
@@ -56,7 +54,6 @@ const CLASSES: AllocationClass[] = [
     key: 'savings',
     name: 'Savings',
     color: AssetClassColors.savings,
-    actual: 8,
     target: 10,
     dashArray: '52 691',
     dashOffset: -631,
@@ -69,8 +66,13 @@ function formatDrift(actual: number, target: number) {
 }
 
 export default function AllocationScreen() {
-  const [selectedKey, setSelectedKey] = useState('stocks');
-  const selected = CLASSES.find((item) => item.key === selectedKey) ?? CLASSES[0];
+  const [selectedKey, setSelectedKey] = useState<AssetClass>('stocks');
+  const allocation = useAllocation();
+  const classes: AllocationClass[] = CLASS_META.map((meta) => ({
+    ...meta,
+    actual: Math.round(allocation.find((slice) => slice.assetClass === meta.key)?.weight ?? 0),
+  }));
+  const selected = classes.find((item) => item.key === selectedKey) ?? classes[0];
 
   return (
     <View style={styles.screen}>
@@ -91,7 +93,7 @@ export default function AllocationScreen() {
                 strokeWidth={1}
                 strokeDasharray="2 4"
               />
-              {CLASSES.map((item) => {
+              {classes.map((item) => {
                 const isSelected = item.key === selectedKey;
                 return (
                   <Circle
@@ -121,9 +123,9 @@ export default function AllocationScreen() {
         </View>
 
         <View style={styles.legend}>
-          {CLASSES.map((item, index) => {
+          {classes.map((item, index) => {
             const isSelected = item.key === selectedKey;
-            const isLast = index === CLASSES.length - 1;
+            const isLast = index === classes.length - 1;
             return (
               <Pressable
                 key={item.key}

@@ -3,24 +3,37 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Caption } from '@/components/editorial/caption';
 import { Colors, Fonts } from '@/constants/theme';
+import { formatNumber } from '@/lib/money';
+import { useNotes } from '@/store';
 
 export default function NotesScreen() {
+  const notes = useNotes();
+  const unreadCount = notes.filter((note) => !note.read).length;
+  const concentration = notes[0];
+  const milestone = notes[1];
+  const fees = notes[2];
+  const drift = notes[3];
+
   return (
     <View style={styles.screen}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Caption>Notes · 2 unread</Caption>
+          <Caption>Notes · {formatNumber(unreadCount)} unread</Caption>
           <Caption style={styles.brass}>Rules</Caption>
         </View>
 
         <View>
           <Caption>
-            <Text style={styles.brass}>–</Text> Concentration · Today
+            {!concentration.read ? <Text style={styles.brass}>– </Text> : null}Concentration · Today
           </Caption>
-          <Text style={styles.headline}>
-            Crypto moved 62% of today&apos;s change while holding 9% of the total.
+          <Text style={concentration.read ? styles.headlineMuted : styles.headline}>
+            {concentration.body}
           </Text>
-          <Text style={styles.figures}>Bitcoin −2.4% · Ether −1.9%</Text>
+          {concentration.detail ? (
+            <Text style={concentration.read ? styles.figuresMuted : styles.figures}>
+              {concentration.detail}
+            </Text>
+          ) : null}
           <Pressable
             accessibilityRole="button"
             hitSlop={10}
@@ -31,25 +44,36 @@ export default function NotesScreen() {
 
         <View style={styles.divided}>
           <Caption>
-            <Text style={styles.brass}>–</Text> Milestone · Yesterday
+            {!milestone.read ? <Text style={styles.brass}>– </Text> : null}Milestone · Yesterday
           </Caption>
-          <Text style={styles.headline}>Your Lisbon goal passed the halfway mark.</Text>
-          <Text style={styles.figures}>$348,000 of $600,000 · four months early</Text>
+          <Text style={milestone.read ? styles.headlineMuted : styles.headline}>
+            {milestone.body}
+          </Text>
+          {milestone.detail ? (
+            <Text style={milestone.read ? styles.figuresMuted : styles.figures}>
+              {milestone.detail}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.divided}>
-          <Caption>Fees · 12 Sept</Caption>
-          <Text style={styles.headlineMuted}>
-            One fund costs 0.72% a year; a comparable index fund costs 0.03%.
-          </Text>
-          <Text style={styles.figuresMuted}>About $612 a year on $84,900</Text>
+          <Caption>
+            {!fees.read ? <Text style={styles.brass}>– </Text> : null}Fees · 12 Sept
+          </Caption>
+          <Text style={fees.read ? styles.headlineMuted : styles.headline}>{fees.body}</Text>
+          {fees.detail ? (
+            <Text style={fees.read ? styles.figuresMuted : styles.figures}>{fees.detail}</Text>
+          ) : null}
         </View>
 
         <View style={styles.divided}>
-          <Caption>Drift · 3 Sept</Caption>
-          <Text style={styles.headlineMuted}>
-            Stocks are six points above target; property four below.
-          </Text>
+          <Caption>
+            {!drift.read ? <Text style={styles.brass}>– </Text> : null}Drift · 3 Sept
+          </Caption>
+          <Text style={drift.read ? styles.headlineMuted : styles.headline}>{drift.body}</Text>
+          {drift.detail ? (
+            <Text style={drift.read ? styles.figuresMuted : styles.figures}>{drift.detail}</Text>
+          ) : null}
         </View>
 
         <Text style={styles.footer}>August · 3 notes</Text>

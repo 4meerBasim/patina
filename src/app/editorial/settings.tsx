@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -10,6 +10,11 @@ import Animated, {
 import { Caption } from '@/components/editorial/caption';
 import { useLocale } from '@/components/editorial/locale';
 import { Colors, Fonts } from '@/constants/theme';
+import { useDataActions, useSettings } from '@/store';
+
+function appearanceLabel(appearance: string): string {
+  return appearance.charAt(0).toUpperCase() + appearance.slice(1);
+}
 
 const timing = { duration: 200, easing: Easing.bezier(0.4, 0, 0.2, 1) };
 
@@ -40,8 +45,8 @@ function Toggle({ isOn, onToggle, label }: { isOn: boolean; onToggle: () => void
 
 export default function SettingsScreen() {
   const { locale, setLocale } = useLocale();
-  const [isBlurOn, setIsBlurOn] = useState(true);
-  const [isFaceIdOn, setIsFaceIdOn] = useState(true);
+  const { baseCurrency, appearance, privacyBlur, biometricLock } = useSettings();
+  const { updateSettings } = useDataActions();
 
   return (
     <ScrollView
@@ -54,7 +59,7 @@ export default function SettingsScreen() {
         </View>
         <View>
           <Text style={styles.profileName}>Rania Haddad</Text>
-          <Text style={styles.profileMeta}>Member since 2023 · USD base</Text>
+          <Text style={styles.profileMeta}>Member since 2023 · {baseCurrency} base</Text>
         </View>
       </View>
 
@@ -88,25 +93,29 @@ export default function SettingsScreen() {
       </View>
       <View style={[styles.row, styles.rowDivided]}>
         <Text style={styles.rowLabel}>Base currency</Text>
-        <Text style={styles.rowValue}>USD</Text>
+        <Text style={styles.rowValue}>{baseCurrency}</Text>
       </View>
 
       <Caption style={styles.sectionCaption}>Appearance & privacy</Caption>
       <View style={styles.row}>
         <Text style={styles.rowLabel}>Appearance</Text>
-        <Text style={styles.rowValue}>Dark</Text>
+        <Text style={styles.rowValue}>{appearanceLabel(appearance)}</Text>
       </View>
       <View style={[styles.row, styles.rowDivided]}>
         <Text style={styles.rowLabel}>Blur figures on launch</Text>
         <Toggle
-          isOn={isBlurOn}
-          onToggle={() => setIsBlurOn((v) => !v)}
+          isOn={privacyBlur}
+          onToggle={() => void updateSettings({ privacyBlur: !privacyBlur })}
           label="Blur figures on launch"
         />
       </View>
       <View style={[styles.row, styles.rowDivided]}>
         <Text style={styles.rowLabel}>Face ID</Text>
-        <Toggle isOn={isFaceIdOn} onToggle={() => setIsFaceIdOn((v) => !v)} label="Face ID" />
+        <Toggle
+          isOn={biometricLock}
+          onToggle={() => void updateSettings({ biometricLock: !biometricLock })}
+          label="Face ID"
+        />
       </View>
 
       <View style={styles.spacer} />

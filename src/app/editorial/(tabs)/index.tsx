@@ -16,18 +16,46 @@ import { DirectionView } from '@/components/editorial/direction-view';
 import { useLocale } from '@/components/editorial/locale';
 import { PeriodSelector } from '@/components/editorial/period-selector';
 import { AssetClassColors, Colors, Fonts } from '@/constants/theme';
+import type { AssetClass } from '@/data/types';
+import {
+  formatCurrency,
+  formatNumber,
+  formatPercent,
+  formatSignedCurrency,
+} from '@/lib/money';
+import {
+  useAllocation,
+  useHoldings,
+  useNetWorth,
+  useNotes,
+  usePeriodDelta,
+  useRecentActivity,
+  useSettings,
+  useTodayDelta,
+  type Delta,
+} from '@/store';
 
 const CHART_AREA =
   'M0 70 C30 66 50 74 80 60 S130 40 160 48 S210 30 240 34 S290 18 320 22 L354 14 V96 H0Z';
 const CHART_LINE = 'M0 70 C30 66 50 74 80 60 S130 40 160 48 S210 30 240 34 S290 18 320 22 L354 14';
 
-const allocation = [
-  { flex: 46, color: AssetClassColors.stocks },
-  { flex: 9, color: AssetClassColors.crypto },
-  { flex: 31, color: AssetClassColors.property },
-  { flex: 6, color: AssetClassColors.cash },
-  { flex: 8, color: AssetClassColors.savings },
-];
+const PERIOD_DAYS = 30;
+
+const EN_CLASS_LABEL: Record<AssetClass, string> = {
+  stocks: 'Stocks',
+  crypto: 'Crypto',
+  property: 'Property',
+  cash: 'Cash',
+  savings: 'Savings',
+};
+
+const AR_CLASS_LABEL: Record<AssetClass, string> = {
+  stocks: 'أسهم',
+  crypto: 'عملات',
+  property: 'عقارات',
+  cash: 'نقد',
+  savings: 'مدخرات',
+};
 
 function HomeChart({ gradientId, isMirrored }: { gradientId: string; isMirrored?: boolean }) {
   return (
@@ -69,6 +97,31 @@ function Avatar({ label }: { label: string }) {
 
 function EnglishHome() {
   const [period, setPeriod] = useState(1);
+  const { baseCurrency } = useSettings();
+  const netWorth = useNetWorth();
+  const periodDelta = usePeriodDelta(PERIOD_DAYS);
+  const todayDelta = useTodayDelta();
+  const allocation = useAllocation();
+  const notes = useNotes();
+  const recent = useRecentActivity(2);
+  const holdings = useHoldings();
+
+  const hero = formatCurrency(netWorth.total, baseCurrency, {
+    locale: 'en',
+    numeralSystem: 'latin',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const dot = hero.lastIndexOf('.');
+  const heroWhole = hero.slice(0, dot);
+  const heroFraction = hero.slice(dot);
+
+  const concentration = notes.find((note) => note.kind === 'concentration');
+  const symbolOf = (holdingId: string | null) =>
+    holdings.find((holding) => holding.id === holdingId)?.instrument?.symbol ?? '';
+  const dividend = recent.find((tx) => tx.type === 'dividend');
+  const buy = recent.find((tx) => tx.type === 'buy');
+
   return (
     <ScrollView
       style={styles.screen}
@@ -81,11 +134,16 @@ function EnglishHome() {
         </View>
         <View style={styles.brassRule} />
         <Text style={styles.hero}>
-          $1,284,930<Text style={styles.heroDecimal}>.42</Text>
+          {heroWhole}
+          <Text style={styles.heroDecimal}>{heroFraction}</Text>
         </Text>
         <View style={styles.deltas}>
-          <Text style={[styles.delta, styles.gain]}>▲ +$12,410 · 0.98% · past 30 days</Text>
-          <Text style={[styles.delta, styles.loss]}>▼ −$3,102 · 0.24% · today</Text>
+          <Text style={[styles.delta, periodDelta.amount >= 0 ? styles.gain : styles.loss]}>
+            {deltaEn(periodDelta, baseCurrency, 'past 30 days')}
+          </Text>
+          <Text style={[styles.delta, todayDelta.amount >= 0 ? styles.gain : styles.loss]}>
+            {deltaEn(todayDelta, baseCurrency, 'today')}
+          </Text>
         </View>
       </View>
 
@@ -107,24 +165,28 @@ function EnglishHome() {
       <Pressable accessibilityRole="button" onPress={() => router.push('/editorial/allocation')}>
         <Caption style={styles.sectionCaption}>Allocation</Caption>
         <View style={styles.allocationBar}>
-          {allocation.map((segment, index) => (
-            <View key={index} style={{ flex: segment.flex, backgroundColor: segment.color }} />
+          {allocation.map((slice) => (
+            <View
+              key={slice.assetClass}
+              style={{
+                flex: Math.round(slice.weight),
+                backgroundColor: AssetClassColors[slice.assetClass],
+              }}
+            />
           ))}
         </View>
         <View style={styles.allocationLegend}>
-          <Text style={styles.legend}>Stocks 46</Text>
-          <Text style={styles.legend}>Crypto 9</Text>
-          <Text style={styles.legend}>Property 31</Text>
-          <Text style={styles.legend}>Cash 6</Text>
-          <Text style={styles.legend}>Savings 8</Text>
+          {allocation.map((slice) => (
+            <Text key={slice.assetClass} style={styles.legend}>
+              {EN_CLASS_LABEL[slice.assetClass]} {formatNumber(Math.round(slice.weight))}
+            </Text>
+          ))}
         </View>
       </Pressable>
 
       <View>
         <Caption style={styles.sectionCaption}>Note · Today</Caption>
-        <Text style={styles.note}>
-          Crypto moved 62% of today&apos;s change while holding 9% of the total.
-        </Text>
+        <Text style={styles.note}>{concentration?.body}</Text>
         <Text style={styles.noteMeta}>
           Concentration ·{' '}
           <Text
@@ -142,19 +204,60 @@ function EnglishHome() {
           accessibilityRole="button"
           style={styles.recentRow}
           onPress={() => router.push('/editorial/activity')}>
-          <Text style={styles.recentText}>Dividend · MSFT</Text>
-          <Text style={styles.recentText}>+$184.20</Text>
+          <Text style={styles.recentText}>Dividend · {symbolOf(dividend?.holdingId ?? null)}</Text>
+          <Text style={styles.recentText}>
+            {dividend
+              ? formatSignedCurrency(dividend.amount, baseCurrency, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              : ''}
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           style={[styles.recentRow, styles.recentRowDivided]}
           onPress={() => router.push('/editorial/activity')}>
-          <Text style={styles.recentText}>Buy · 50 AAPL</Text>
-          <Text style={styles.recentText}>−$12,410.00</Text>
+          <Text style={styles.recentText}>
+            Buy · {formatNumber(buy?.quantity ?? 0)} {symbolOf(buy?.holdingId ?? null)}
+          </Text>
+          <Text style={styles.recentText}>
+            {buy
+              ? formatSignedCurrency(buy.amount, baseCurrency, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              : ''}
+          </Text>
         </Pressable>
       </View>
     </ScrollView>
   );
+}
+
+function deltaEn(delta: Delta, currency: Parameters<typeof formatCurrency>[1], label: string): string {
+  const arrow = delta.amount >= 0 ? '▲' : '▼';
+  const amount = formatSignedCurrency(delta.amount, currency, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  const percent = formatPercent(Math.abs(delta.percent));
+  return `${arrow} ${amount} · ${percent} · ${label}`;
+}
+
+function deltaAr(
+  delta: Delta,
+  currency: Parameters<typeof formatCurrency>[1],
+  label: string,
+): string {
+  const arrow = delta.amount >= 0 ? '▲' : '▼';
+  const word = delta.amount >= 0 ? 'ارتفاع' : 'انخفاض';
+  const percent = formatPercent(Math.abs(delta.percent), { numeralSystem: 'arabic' });
+  const amount = formatSignedCurrency(delta.amount, currency, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  return `${arrow} ${word} ${percent} · ‎${amount}‎ · ${label}`;
 }
 
 function ArabicCaption({ children, style }: { children: string; style?: StyleProp<TextStyle> }) {
@@ -167,6 +270,35 @@ function ArabicCaption({ children, style }: { children: string; style?: StylePro
 
 function ArabicHome() {
   const [period, setPeriod] = useState(1);
+  const { baseCurrency } = useSettings();
+  const netWorth = useNetWorth();
+  const periodDelta = usePeriodDelta(PERIOD_DAYS);
+  const todayDelta = useTodayDelta();
+  const allocation = useAllocation();
+  const recent = useRecentActivity(2);
+  const holdings = useHoldings();
+
+  const heroNumber = formatNumber(netWorth.total, {
+    numeralSystem: 'arabic',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const sep = heroNumber.lastIndexOf('٫');
+  const heroWhole = heroNumber.slice(0, sep);
+  const heroFraction = heroNumber.slice(sep);
+  const heroCurrency = formatCurrency(netWorth.total, baseCurrency, {
+    locale: 'ar',
+    numeralSystem: 'arabic',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const symbol = heroCurrency.slice(heroCurrency.lastIndexOf(' ') + 1);
+
+  const periodLabel = `آخر ${formatNumber(PERIOD_DAYS, { numeralSystem: 'arabic' })} يومًا`;
+  const symbolOf = (holdingId: string | null) =>
+    holdings.find((holding) => holding.id === holdingId)?.instrument?.symbol ?? '';
+  const dividend = recent.find((tx) => tx.type === 'dividend');
+
   return (
     <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
       <DirectionView isRtl style={styles.content}>
@@ -177,15 +309,19 @@ function ArabicHome() {
           </View>
           <View style={styles.brassRule} />
           <Text style={styles.arHero}>
-            {'⁦'}١٬٢٨٤٬٩٣٠<Text style={styles.heroDecimal}>٫٤٢</Text>{' '}
-            <Text style={styles.arHeroCurrency}>$</Text>
+            {'⁦'}
+            {heroWhole}
+            <Text style={styles.heroDecimal}>{heroFraction}</Text>{' '}
+            <Text style={styles.arHeroCurrency}>{symbol}</Text>
             {'⁩'}
           </Text>
           <View style={styles.deltas}>
-            <Text style={[styles.arDelta, styles.gain]}>
-              ▲ ارتفاع ٠٫٩٨٪ · ‎+$12,410‎ · آخر ٣٠ يومًا
+            <Text style={[styles.arDelta, periodDelta.amount >= 0 ? styles.gain : styles.loss]}>
+              {deltaAr(periodDelta, baseCurrency, periodLabel)}
             </Text>
-            <Text style={[styles.arDelta, styles.loss]}>▼ انخفاض ٠٫٢٤٪ · ‎−$3,102‎ · اليوم</Text>
+            <Text style={[styles.arDelta, todayDelta.amount >= 0 ? styles.gain : styles.loss]}>
+              {deltaAr(todayDelta, baseCurrency, 'اليوم')}
+            </Text>
           </View>
         </View>
 
@@ -208,16 +344,23 @@ function ArabicHome() {
         <Pressable accessibilityRole="button" onPress={() => router.push('/editorial/allocation')}>
           <ArabicCaption style={styles.sectionCaption}>التوزيع</ArabicCaption>
           <View style={styles.allocationBar}>
-            {allocation.map((segment, index) => (
-              <View key={index} style={{ flex: segment.flex, backgroundColor: segment.color }} />
+            {allocation.map((slice) => (
+              <View
+                key={slice.assetClass}
+                style={{
+                  flex: Math.round(slice.weight),
+                  backgroundColor: AssetClassColors[slice.assetClass],
+                }}
+              />
             ))}
           </View>
           <View style={styles.allocationLegend}>
-            <Text style={styles.arLegend}>أسهم ٤٦</Text>
-            <Text style={styles.arLegend}>عملات ٩</Text>
-            <Text style={styles.arLegend}>عقارات ٣١</Text>
-            <Text style={styles.arLegend}>نقد ٦</Text>
-            <Text style={styles.arLegend}>مدخرات ٨</Text>
+            {allocation.map((slice) => (
+              <Text key={slice.assetClass} style={styles.arLegend}>
+                {AR_CLASS_LABEL[slice.assetClass]}{' '}
+                {formatNumber(Math.round(slice.weight), { numeralSystem: 'arabic' })}
+              </Text>
+            ))}
           </View>
         </Pressable>
 
@@ -244,9 +387,16 @@ function ArabicHome() {
             style={styles.recentRow}
             onPress={() => router.push('/editorial/activity')}>
             <Text style={styles.arRecentText}>
-              توزيعات أرباح · <Text style={styles.ticker}>MSFT</Text>
+              توزيعات أرباح · <Text style={styles.ticker}>{symbolOf(dividend?.holdingId ?? null)}</Text>
             </Text>
-            <Text style={styles.arRecentText}>‎+$184.20‎</Text>
+            <Text style={styles.arRecentText}>
+              {dividend
+                ? `‎${formatSignedCurrency(dividend.amount, baseCurrency, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}‎`
+                : ''}
+            </Text>
           </Pressable>
         </View>
       </DirectionView>

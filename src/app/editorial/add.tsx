@@ -15,9 +15,7 @@ import Animated, { Easing, SlideInDown } from 'react-native-reanimated';
 import { Caption } from '@/components/editorial/caption';
 import { Colors, Fonts } from '@/constants/theme';
 import { formatDollars, parseAmount } from '@/lib/amount';
-
-const NET_WORTH = 1284930.42;
-const DEFAULT_PRICE = 248.2;
+import { useDataActions, useHoldings, useNetWorth } from '@/store';
 
 export default function AddHoldingScreen() {
   const [quantity, setQuantity] = useState('50');
@@ -25,10 +23,44 @@ export default function AddHoldingScreen() {
   const [isQuantityFocused, setIsQuantityFocused] = useState(true);
   const [isPriceFocused, setIsPriceFocused] = useState(false);
 
+  const netWorth = useNetWorth();
+  const holdings = useHoldings();
+  const { addHolding, addTransaction } = useDataActions();
+
+  const apple = holdings.find((item) => item.instrument?.symbol === 'AAPL');
+  const defaultPrice = apple && apple.quantity > 0 ? apple.value / apple.quantity : 248.2;
+
   const quantityValue = parseAmount(quantity) ?? 0;
-  const priceValue = parseAmount(price) ?? DEFAULT_PRICE;
+  const priceValue = parseAmount(price) ?? defaultPrice;
   const total = quantityValue * priceValue;
-  const weight = (total / NET_WORTH) * 100;
+  const weight = netWorth.total > 0 ? (total / netWorth.total) * 100 : 0;
+
+  const onSubmit = async () => {
+    if (!apple?.instrumentId || quantityValue <= 0) {
+      router.back();
+      return;
+    }
+    const holdingId = await addHolding({
+      accountId: apple.accountId,
+      assetClass: 'stocks',
+      instrumentId: apple.instrumentId,
+      name: null,
+      quantity: quantityValue,
+      currency: 'USD',
+    });
+    await addTransaction({
+      holdingId,
+      accountId: apple.accountId,
+      type: 'buy',
+      quantity: quantityValue,
+      price: priceValue,
+      amount: -total,
+      currency: 'USD',
+      date: new Date().toISOString().slice(0, 10),
+      note: null,
+    });
+    router.back();
+  };
 
   return (
     <View style={styles.backdrop}>
@@ -93,7 +125,7 @@ export default function AddHoldingScreen() {
                   onChangeText={setPrice}
                   onFocus={() => setIsPriceFocused(true)}
                   onBlur={() => setIsPriceFocused(false)}
-                  placeholder="$248.20"
+                  placeholder={formatDollars(defaultPrice)}
                   placeholderTextColor={Colors.slate}
                   keyboardType="decimal-pad"
                   cursorColor={Colors.brass}
@@ -114,7 +146,9 @@ export default function AddHoldingScreen() {
               <Pressable
                 accessibilityRole="button"
                 style={styles.nextButton}
-                onPress={() => router.back()}>
+                onPress={() => {
+                  void onSubmit();
+                }}>
                 <Text style={styles.nextLabel}>Next</Text>
               </Pressable>
             </View>
