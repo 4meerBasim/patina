@@ -5,6 +5,6 @@ Summary: Design screen 1k: transaction ledger grouped by month with filter chips
 
 ## Related
 - Connects to: [[Editorial Home]]
-- Features: [[Activity Filter Chips]], [[Activity CSV Export]], [[Design Tokens and Fonts]]
-- Bugs: [[Activity CSV Export Not Machine Readable]]
+- Features: [[Activity Filter Chips]], [[Activity CSV Export]], [[Design Tokens and Fonts]], [[Domain Data Model]], [[Local SQLite Persistence]], [[App State Store]], [[Demo Seed Data]]
+- Bugs: [[Activity CSV Export Not Machine Readable]], [[Contradictory Lisbon Flat Valuation]]
 - Enhancements: [[Native Style for Remaining Screens]]

@@ -5,6 +5,6 @@ Summary: Design screen 1g: gain since Jan 2023, a value vs. contributed chart, a
 
 ## Related
 - Connects to: [[Editorial Home]]
-- Features: [[Design Tokens and Fonts]]
+- Features: [[Design Tokens and Fonts]], [[Domain Data Model]], [[Local SQLite Persistence]], [[App State Store]], [[Daily Net Worth Snapshots]], [[Returns Engine]]
 - Bugs: none known
 - Enhancements: [[Native Style for Remaining Screens]]

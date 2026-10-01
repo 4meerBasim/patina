@@ -5,6 +5,6 @@ Summary: Design screen 1h: allocation ring with a selectable class, an actual vs
 
 ## Related
 - Connects to: [[Editorial Home]], [[Editorial Portfolio]], [[Editorial Notes]]
-- Features: [[Allocation Class Selection]], [[Design Tokens and Fonts]]
+- Features: [[Allocation Class Selection]], [[Design Tokens and Fonts]], [[Domain Data Model]], [[Local SQLite Persistence]], [[App State Store]]
 - Bugs: none known
 - Enhancements: [[Allocation Ring Drill-Down]], [[Native Style for Remaining Screens]]

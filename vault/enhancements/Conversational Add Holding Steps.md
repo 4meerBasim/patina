@@ -10,3 +10,4 @@ Design Document §4.4: step 1 asks "What kind of holding?" with five monograms; 
 - Page: [[Editorial Add Holding]]
 - Features: [[Add Holding Live Preview]]
 - Enhancements: [[Digit Drift Animation]]
+- Bugs: [[Native Add Hardwired To Apple]]

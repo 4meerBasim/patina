@@ -5,6 +5,6 @@ Summary: Design screen 1l: profile, linked accounts, a Language row that toggles
 
 ## Related
 - Connects to: [[Editorial Home]]
-- Features: [[Settings Toggles]], [[Arabic RTL Home]], [[Design Tokens and Fonts]]
+- Features: [[Settings Toggles]], [[Arabic RTL Home]], [[Design Tokens and Fonts]], [[Persisted Settings]], [[Seeded FX Rates]], [[Money and Numeral Formatting]]
 - Bugs: none known
-- Enhancements: [[Privacy Blur on Launch]], [[Light Mode]]
+- Enhancements: [[Privacy Blur on Launch]], [[Light Mode]], [[Network FX Rates]]
