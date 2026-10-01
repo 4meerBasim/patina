@@ -13,11 +13,31 @@ import {
 import Animated, { Easing, SlideInDown } from 'react-native-reanimated';
 
 import { Caption } from '@/components/editorial/caption';
+import { InstrumentSearch } from '@/components/editorial/instrument-search';
 import { Colors, Fonts } from '@/constants/theme';
+import type { Account, AssetClass, Instrument, InstrumentKind } from '@/data/types';
 import { formatDollars, parseAmount } from '@/lib/amount';
-import { useDataActions, useHoldings, useNetWorth } from '@/store';
+import { useAccounts, useDataActions, useHoldings, useNetWorth } from '@/store';
+
+const FALLBACK_PRICE = 248.2;
+
+const KIND_NOUN: Record<InstrumentKind, string> = {
+  stock: 'stock',
+  etf: 'fund',
+  crypto: 'crypto',
+};
+
+function assetClassFor(kind: InstrumentKind): AssetClass {
+  return kind === 'crypto' ? 'crypto' : 'stocks';
+}
+
+function accountFor(accounts: Account[], kind: InstrumentKind): Account | undefined {
+  const preferred = kind === 'crypto' ? 'exchange' : 'brokerage';
+  return accounts.find((account) => account.kind === preferred) ?? accounts[0];
+}
 
 export default function AddHoldingScreen() {
+  const [instrument, setInstrument] = useState<Instrument | null>(null);
   const [quantity, setQuantity] = useState('50');
   const [price, setPrice] = useState('');
   const [isQuantityFocused, setIsQuantityFocused] = useState(true);
@@ -25,10 +45,14 @@ export default function AddHoldingScreen() {
 
   const netWorth = useNetWorth();
   const holdings = useHoldings();
-  const { addHolding, addTransaction } = useDataActions();
+  const accounts = useAccounts();
+  const { addHolding, updateHolding, addTransaction } = useDataActions();
 
-  const apple = holdings.find((item) => item.instrument?.symbol === 'AAPL');
-  const defaultPrice = apple && apple.quantity > 0 ? apple.value / apple.quantity : 248.2;
+  const existing = instrument
+    ? holdings.find((holding) => holding.instrumentId === instrument.id)
+    : undefined;
+  const defaultPrice =
+    existing && existing.quantity > 0 ? existing.value / existing.quantity : FALLBACK_PRICE;
 
   const quantityValue = parseAmount(quantity) ?? 0;
   const priceValue = parseAmount(price) ?? defaultPrice;
@@ -36,26 +60,49 @@ export default function AddHoldingScreen() {
   const weight = netWorth.total > 0 ? (total / netWorth.total) * 100 : 0;
 
   const onSubmit = async () => {
-    if (!apple?.instrumentId || quantityValue <= 0) {
+    if (!instrument || quantityValue <= 0) {
       router.back();
       return;
     }
-    const holdingId = await addHolding({
-      accountId: apple.accountId,
-      assetClass: 'stocks',
-      instrumentId: apple.instrumentId,
-      name: null,
-      quantity: quantityValue,
-      currency: 'USD',
-    });
+    const currency = instrument.currency;
+    let holdingId: string;
+    let accountId: string;
+    if (existing) {
+      holdingId = existing.id;
+      accountId = existing.accountId;
+      await updateHolding({
+        id: existing.id,
+        accountId: existing.accountId,
+        assetClass: existing.assetClass,
+        instrumentId: existing.instrumentId,
+        name: existing.name,
+        quantity: existing.quantity + quantityValue,
+        currency: existing.currency,
+      });
+    } else {
+      const account = accountFor(accounts, instrument.kind);
+      if (!account) {
+        router.back();
+        return;
+      }
+      accountId = account.id;
+      holdingId = await addHolding({
+        accountId,
+        assetClass: assetClassFor(instrument.kind),
+        instrumentId: instrument.id,
+        name: null,
+        quantity: quantityValue,
+        currency,
+      });
+    }
     await addTransaction({
       holdingId,
-      accountId: apple.accountId,
+      accountId,
       type: 'buy',
       quantity: quantityValue,
       price: priceValue,
       amount: -total,
-      currency: 'USD',
+      currency,
       date: new Date().toISOString().slice(0, 10),
       note: null,
     });
@@ -71,88 +118,108 @@ export default function AddHoldingScreen() {
           style={styles.content}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={70}>
-          <Pressable style={styles.fill} accessible={false} onPress={Keyboard.dismiss}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              hitSlop={{ top: 24, bottom: 24, left: 24, right: 24 }}
-              style={styles.grabberHit}
-              onPress={() => router.back()}>
-              <View style={styles.grabber} />
-            </Pressable>
-
-            <Caption>New holding</Caption>
-
-            <View style={styles.sentence}>
-              <Text style={styles.sentenceText}>A </Text>
-              <View style={styles.fragment}>
-                <Text style={[styles.sentenceText, styles.fragmentText]}>stock</Text>
-              </View>
-              <Text style={styles.sentenceText}> — </Text>
-              <View style={styles.fragment}>
-                <Text style={[styles.sentenceText, styles.fragmentText]}>Apple, AAPL</Text>
-              </View>
-              <Text style={styles.sentenceText}> —</Text>
-            </View>
-
-            <Text style={styles.question}>How much?</Text>
-
-            <View style={styles.inputs}>
-              <View style={styles.inputColumn}>
-                <Caption>Quantity</Caption>
-                <TextInput
-                  accessibilityLabel="Quantity"
-                  style={[
-                    styles.field,
-                    isQuantityFocused ? styles.fieldFocused : styles.fieldBlurred,
-                  ]}
-                  value={quantity}
-                  onChangeText={setQuantity}
-                  onFocus={() => setIsQuantityFocused(true)}
-                  onBlur={() => setIsQuantityFocused(false)}
-                  autoFocus
-                  keyboardType="decimal-pad"
-                  cursorColor={Colors.brass}
-                  selectionColor={Colors.brass}
-                />
-              </View>
-              <View style={styles.inputColumn}>
-                <Caption>Price</Caption>
-                <TextInput
-                  accessibilityLabel="Price"
-                  style={[styles.field, isPriceFocused ? styles.fieldFocused : styles.fieldBlurred]}
-                  value={price}
-                  onChangeText={setPrice}
-                  onFocus={() => setIsPriceFocused(true)}
-                  onBlur={() => setIsPriceFocused(false)}
-                  placeholder={formatDollars(defaultPrice)}
-                  placeholderTextColor={Colors.slate}
-                  keyboardType="decimal-pad"
-                  cursorColor={Colors.brass}
-                  selectionColor={Colors.brass}
-                />
-              </View>
-            </View>
-
-            <Text style={styles.live}>
-              That&apos;s <Text style={styles.liveTotal}>{formatDollars(total)}</Text> ·{' '}
-              {weight.toFixed(2)}% of net worth
-            </Text>
-
-            <View style={styles.spacer} />
-
-            <View style={styles.footer}>
-              <Text style={styles.step}>3 of 4 · acquired date next</Text>
-              <Pressable
-                accessibilityRole="button"
-                style={styles.nextButton}
-                onPress={() => {
-                  void onSubmit();
-                }}>
-                <Text style={styles.nextLabel}>Next</Text>
-              </Pressable>
-            </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            hitSlop={{ top: 24, bottom: 24, left: 24, right: 24 }}
+            style={styles.grabberHit}
+            onPress={() => router.back()}>
+            <View style={styles.grabber} />
           </Pressable>
+
+          <Caption>New holding</Caption>
+
+          {instrument ? (
+            <Pressable style={styles.fill} accessible={false} onPress={Keyboard.dismiss}>
+              <View style={styles.sentence}>
+                <Text style={styles.sentenceText}>A </Text>
+                <View style={styles.fragment}>
+                  <Text style={[styles.sentenceText, styles.fragmentText]}>
+                    {KIND_NOUN[instrument.kind]}
+                  </Text>
+                </View>
+                <Text style={styles.sentenceText}> — </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${instrument.name}, ${instrument.symbol}. Change instrument`}
+                  hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                  style={styles.fragment}
+                  onPress={() => setInstrument(null)}>
+                  <Text style={[styles.sentenceText, styles.fragmentText]}>
+                    {instrument.name}, {instrument.symbol}
+                  </Text>
+                </Pressable>
+                <Text style={styles.sentenceText}> —</Text>
+              </View>
+
+              <Text style={styles.question}>How much?</Text>
+
+              <View style={styles.inputs}>
+                <View style={styles.inputColumn}>
+                  <Caption>Quantity</Caption>
+                  <TextInput
+                    accessibilityLabel="Quantity"
+                    style={[
+                      styles.field,
+                      isQuantityFocused ? styles.fieldFocused : styles.fieldBlurred,
+                    ]}
+                    value={quantity}
+                    onChangeText={setQuantity}
+                    onFocus={() => setIsQuantityFocused(true)}
+                    onBlur={() => setIsQuantityFocused(false)}
+                    autoFocus
+                    keyboardType="decimal-pad"
+                    cursorColor={Colors.brass}
+                    selectionColor={Colors.brass}
+                  />
+                </View>
+                <View style={styles.inputColumn}>
+                  <Caption>Price</Caption>
+                  <TextInput
+                    accessibilityLabel="Price"
+                    style={[
+                      styles.field,
+                      isPriceFocused ? styles.fieldFocused : styles.fieldBlurred,
+                    ]}
+                    value={price}
+                    onChangeText={setPrice}
+                    onFocus={() => setIsPriceFocused(true)}
+                    onBlur={() => setIsPriceFocused(false)}
+                    placeholder={formatDollars(defaultPrice)}
+                    placeholderTextColor={Colors.slate}
+                    keyboardType="decimal-pad"
+                    cursorColor={Colors.brass}
+                    selectionColor={Colors.brass}
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.live}>
+                That&apos;s <Text style={styles.liveTotal}>{formatDollars(total)}</Text> ·{' '}
+                {weight.toFixed(2)}% of net worth
+              </Text>
+
+              <View style={styles.spacer} />
+
+              <View style={styles.footer}>
+                <Text style={styles.step}>3 of 4 · acquired date next</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Next"
+                  style={styles.nextButton}
+                  onPress={() => {
+                    void onSubmit();
+                  }}>
+                  <Text style={styles.nextLabel}>Next</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          ) : (
+            <>
+              <Text style={styles.question}>What are you adding?</Text>
+              <InstrumentSearch onPick={setInstrument} />
+            </>
+          )}
         </KeyboardAvoidingView>
       </Animated.View>
     </View>

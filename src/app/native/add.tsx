@@ -13,8 +13,10 @@ import {
 import Animated, { Easing, SlideInDown } from 'react-native-reanimated';
 
 import { GroupedCard, RowSeparator } from '@/components/native/grouped-list';
+import { InstrumentPicker } from '@/components/native/instrument-picker';
 import { SegmentedControl } from '@/components/native/segmented-control';
 import { Colors } from '@/constants/theme';
+import type { Account, AssetClass, Instrument, InstrumentKind } from '@/data/types';
 import { parseAmount } from '@/lib/amount';
 import { formatCurrency, formatPercent } from '@/lib/money';
 import { useAccounts, useDataActions, useHoldings, useNetWorth, useSettings } from '@/store';
@@ -26,8 +28,18 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function assetClassFor(kind: InstrumentKind): AssetClass {
+  return kind === 'crypto' ? 'crypto' : 'stocks';
+}
+
+function accountFor(accounts: Account[], kind: InstrumentKind): Account | undefined {
+  const preferred = kind === 'crypto' ? 'exchange' : 'brokerage';
+  return accounts.find((account) => account.kind === preferred) ?? accounts[0];
+}
+
 export default function NativeAdd() {
   const [assetType, setAssetType] = useState(0);
+  const [instrument, setInstrument] = useState<Instrument | null>(null);
   const [shares, setShares] = useState('50');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
@@ -37,48 +49,75 @@ export default function NativeAdd() {
   const netWorth = useNetWorth();
   const holdings = useHoldings();
   const accounts = useAccounts();
-  const { addHolding, addTransaction } = useDataActions();
+  const { addHolding, updateHolding, addTransaction } = useDataActions();
 
-  const security = holdings.find((holding) => holding.instrument?.symbol === 'AAPL');
-  const account = accounts.find((item) => item.id === security?.accountId);
-  const defaultPrice = security ? security.value / security.quantity : FALLBACK_PRICE;
+  const existing = instrument
+    ? holdings.find((holding) => holding.instrumentId === instrument.id)
+    : undefined;
+  const account = existing
+    ? accounts.find((item) => item.id === existing.accountId)
+    : instrument
+      ? accountFor(accounts, instrument.kind)
+      : undefined;
+  const defaultPrice =
+    existing && existing.quantity > 0 ? existing.value / existing.quantity : FALLBACK_PRICE;
 
   const sharesValue = parseAmount(shares) ?? 0;
   const priceValue = parseAmount(price) ?? defaultPrice;
   const amount = sharesValue * priceValue;
   const percent = netWorth.total === 0 ? 0 : (amount / netWorth.total) * 100;
 
-  const securityLabel = security?.instrument
-    ? `${security.instrument.name} · ${security.instrument.symbol}`
-    : '';
-  const accountLabel = account?.institution ? `${account.institution} ›` : '';
+  const accountLabel = account ? (account.institution ?? account.name) : '';
   const pricePlaceholder = formatCurrency(defaultPrice, settings.baseCurrency, {
     minimumFractionDigits: 2,
   });
 
   const onAdd = useCallback(async () => {
-    if (submitting || !security || !account) {
+    if (submitting || !instrument || sharesValue <= 0) {
       router.back();
       return;
     }
     setSubmitting(true);
     try {
-      const holdingId = await addHolding({
-        accountId: account.id,
-        assetClass: security.assetClass,
-        instrumentId: security.instrument?.id ?? null,
-        name: null,
-        quantity: sharesValue,
-        currency: security.currency,
-      });
+      const currency = instrument.currency;
+      let holdingId: string;
+      let accountId: string;
+      if (existing) {
+        holdingId = existing.id;
+        accountId = existing.accountId;
+        await updateHolding({
+          id: existing.id,
+          accountId: existing.accountId,
+          assetClass: existing.assetClass,
+          instrumentId: existing.instrumentId,
+          name: existing.name,
+          quantity: existing.quantity + sharesValue,
+          currency: existing.currency,
+        });
+      } else {
+        const target = accountFor(accounts, instrument.kind);
+        if (!target) {
+          router.back();
+          return;
+        }
+        accountId = target.id;
+        holdingId = await addHolding({
+          accountId,
+          assetClass: assetClassFor(instrument.kind),
+          instrumentId: instrument.id,
+          name: null,
+          quantity: sharesValue,
+          currency,
+        });
+      }
       await addTransaction({
         holdingId,
-        accountId: account.id,
+        accountId,
         type: 'buy',
         quantity: sharesValue,
         price: priceValue,
         amount: -(sharesValue * priceValue),
-        currency: security.currency,
+        currency,
         date: todayIso(),
         note: notes.trim() || null,
       });
@@ -86,7 +125,18 @@ export default function NativeAdd() {
     } catch {
       setSubmitting(false);
     }
-  }, [submitting, security, account, sharesValue, priceValue, notes, addHolding, addTransaction]);
+  }, [
+    submitting,
+    instrument,
+    existing,
+    accounts,
+    sharesValue,
+    priceValue,
+    notes,
+    addHolding,
+    updateHolding,
+    addTransaction,
+  ]);
 
   return (
     <View style={styles.root}>
@@ -124,11 +174,7 @@ export default function NativeAdd() {
             />
 
             <GroupedCard style={styles.firstCard}>
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Security</Text>
-                <Text style={styles.rowValueMuted}>{securityLabel}</Text>
-                <RowSeparator inset={16} />
-              </View>
+              <InstrumentPicker selected={instrument} onSelect={setInstrument} />
               <View style={styles.row}>
                 <Text style={styles.rowLabel}>Shares</Text>
                 <TextInput
