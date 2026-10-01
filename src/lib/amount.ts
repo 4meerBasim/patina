@@ -7,9 +7,9 @@ for (let i = 0; i <= 9; i += 1) {
 export function parseAmount(text: string): number | null {
   const cleaned = text
     .trim()
-    .replace(/[$\s٬]/g, '')
+    .replace(/[$\s٬,]/g, '')
     .replace(/[٠-٩۰-۹]/g, (digit) => digitMap[digit])
-    .replace(/[٫,]/g, '.');
+    .replace(/٫/g, '.');
   if (cleaned === '') return null;
   const value = Number(cleaned);
   return Number.isFinite(value) ? value : null;
