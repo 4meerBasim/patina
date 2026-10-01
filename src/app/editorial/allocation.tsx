@@ -1,78 +1,179 @@
-import { useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
 import { Caption } from '@/components/editorial/caption';
 import { AssetClassColors, Colors, Fonts } from '@/constants/theme';
-import type { AssetClass } from '@/data/types';
-import { useAllocation } from '@/store';
+import type { AllocationTargets, AssetClass } from '@/data/types';
+import { formatCurrency } from '@/lib/money';
+import type { RebalanceHint } from '@/lib/rebalance';
+import { useAllocation, useAllocationTargets, useDataActions, useRebalanceHints, useSettings } from '@/store';
 
-type AllocationClass = {
+type ClassMeta = {
   key: AssetClass;
   name: string;
   color: string;
-  actual: number;
-  target: number;
   dashArray: string;
   dashOffset: number;
 };
 
-const CLASS_META: Omit<AllocationClass, 'actual'>[] = [
-  {
-    key: 'stocks',
-    name: 'Stocks',
-    color: AssetClassColors.stocks,
-    target: 40,
-    dashArray: '299 691',
-    dashOffset: 0,
-  },
-  {
-    key: 'crypto',
-    name: 'Crypto',
-    color: AssetClassColors.crypto,
-    target: 5,
-    dashArray: '59 691',
-    dashOffset: -307,
-  },
-  {
-    key: 'property',
-    name: 'Real estate',
-    color: AssetClassColors.property,
-    target: 35,
-    dashArray: '202 691',
-    dashOffset: -374,
-  },
-  {
-    key: 'cash',
-    name: 'Cash',
-    color: AssetClassColors.cash,
-    target: 10,
-    dashArray: '39 691',
-    dashOffset: -584,
-  },
-  {
-    key: 'savings',
-    name: 'Savings',
-    color: AssetClassColors.savings,
-    target: 10,
-    dashArray: '52 691',
-    dashOffset: -631,
-  },
+const CLASS_META: ClassMeta[] = [
+  { key: 'stocks', name: 'Stocks', color: AssetClassColors.stocks, dashArray: '299 691', dashOffset: 0 },
+  { key: 'crypto', name: 'Crypto', color: AssetClassColors.crypto, dashArray: '59 691', dashOffset: -307 },
+  { key: 'property', name: 'Real estate', color: AssetClassColors.property, dashArray: '202 691', dashOffset: -374 },
+  { key: 'cash', name: 'Cash', color: AssetClassColors.cash, dashArray: '39 691', dashOffset: -584 },
+  { key: 'savings', name: 'Savings', color: AssetClassColors.savings, dashArray: '52 691', dashOffset: -631 },
 ];
 
-function formatDrift(actual: number, target: number) {
+const NAME_BY_KEY: Record<AssetClass, string> = {
+  stocks: 'Stocks',
+  crypto: 'Crypto',
+  property: 'Real estate',
+  cash: 'Cash',
+  savings: 'Savings',
+};
+
+function formatDrift(actual: number, target: number): string {
   const drift = actual - target;
   return `${drift >= 0 ? '+' : '−'}${Math.abs(drift)}pt`;
 }
 
+const LegendRow = memo(function LegendRow({
+  item,
+  isSelected,
+  isLast,
+  onSelect,
+}: {
+  item: { key: AssetClass; name: string; color: string; actual: number; target: number };
+  isSelected: boolean;
+  isLast: boolean;
+  onSelect: (key: AssetClass) => void;
+}) {
+  const handlePress = useCallback(() => onSelect(item.key), [onSelect, item.key]);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
+      accessibilityLabel={`${item.name}, actual ${item.actual} percent, target ${item.target} percent`}
+      onPress={handlePress}
+      style={[
+        styles.legendRow,
+        { borderTopColor: isSelected ? Colors.brass : Colors.hairline },
+        isLast && styles.legendRowLast,
+      ]}>
+      <View style={[styles.swatch, { backgroundColor: item.color }]} />
+      <Text style={[styles.legendName, { color: isSelected ? Colors.bone : Colors.ash }]}>
+        {item.name}
+      </Text>
+      <Text style={[styles.legendActual, { color: isSelected ? Colors.bone : Colors.ash }]}>
+        {item.actual}%
+      </Text>
+      <Text style={styles.legendTarget}>{item.target}</Text>
+    </Pressable>
+  );
+});
+
+const RebalanceRow = memo(function RebalanceRow({
+  hint,
+  money,
+}: {
+  hint: RebalanceHint;
+  money: (value: number) => string;
+}) {
+  const isBuy = hint.action === 'buy';
+  return (
+    <View style={styles.rebalanceRow}>
+      <Text style={styles.rebalanceName}>{NAME_BY_KEY[hint.assetClass]}</Text>
+      <Text style={styles.rebalanceDrift}>{formatDrift(Math.round(hint.actualPercent), hint.targetPercent)}</Text>
+      <Text style={[styles.rebalanceAction, { color: isBuy ? Colors.verdigris : Colors.copper }]}>
+        {isBuy ? 'Buy' : 'Sell'} {money(Math.abs(hint.deltaValue))}
+      </Text>
+    </View>
+  );
+});
+
+const TargetEditorRow = memo(function TargetEditorRow({
+  meta,
+  value,
+  onAdjust,
+}: {
+  meta: ClassMeta;
+  value: number;
+  onAdjust: (key: AssetClass, delta: number) => void;
+}) {
+  const decrease = useCallback(() => onAdjust(meta.key, -1), [onAdjust, meta.key]);
+  const increase = useCallback(() => onAdjust(meta.key, 1), [onAdjust, meta.key]);
+  return (
+    <View style={styles.editorRow}>
+      <View style={[styles.swatch, { backgroundColor: meta.color }]} />
+      <Text style={styles.editorName}>{meta.name}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Decrease ${meta.name} target`}
+        accessibilityValue={{ text: `${value}%` }}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        style={styles.stepper}
+        onPress={decrease}>
+        <Text style={styles.stepperGlyph}>−</Text>
+      </Pressable>
+      <Text style={styles.editorValue}>{value}%</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Increase ${meta.name} target`}
+        accessibilityValue={{ text: `${value}%` }}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        style={styles.stepper}
+        onPress={increase}>
+        <Text style={styles.stepperGlyph}>+</Text>
+      </Pressable>
+    </View>
+  );
+});
+
 export default function AllocationScreen() {
   const [selectedKey, setSelectedKey] = useState<AssetClass>('stocks');
+  const [isEditing, setIsEditing] = useState(false);
   const allocation = useAllocation();
-  const classes: AllocationClass[] = CLASS_META.map((meta) => ({
+  const targets = useAllocationTargets();
+  const hints = useRebalanceHints();
+  const { baseCurrency } = useSettings();
+  const { setAllocationTargets } = useDataActions();
+  const [draft, setDraft] = useState<AllocationTargets>(targets);
+
+  const money = useCallback(
+    (value: number) =>
+      formatCurrency(value, baseCurrency, {
+        locale: 'en',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }),
+    [baseCurrency],
+  );
+
+  const classes = CLASS_META.map((meta) => ({
     ...meta,
     actual: Math.round(allocation.find((slice) => slice.assetClass === meta.key)?.weight ?? 0),
+    target: targets[meta.key],
   }));
   const selected = classes.find((item) => item.key === selectedKey) ?? classes[0];
+  const actionable = hints
+    .filter((hint) => hint.action !== 'hold')
+    .sort((a, b) => Math.abs(b.deltaValue) - Math.abs(a.deltaValue));
+
+  const openEditor = useCallback(() => {
+    setDraft(targets);
+    setIsEditing(true);
+  }, [targets]);
+  const cancelEditor = useCallback(() => setIsEditing(false), []);
+  const adjust = useCallback((key: AssetClass, delta: number) => {
+    setDraft((prev) => ({ ...prev, [key]: Math.max(0, Math.min(100, prev[key] + delta)) }));
+  }, []);
+  const save = useCallback(() => {
+    void setAllocationTargets(draft);
+    setIsEditing(false);
+  }, [setAllocationTargets, draft]);
+
+  const draftTotal = CLASS_META.reduce((sum, meta) => sum + draft[meta.key], 0);
 
   return (
     <View style={styles.screen}>
@@ -123,39 +224,66 @@ export default function AllocationScreen() {
         </View>
 
         <View style={styles.legend}>
-          {classes.map((item, index) => {
-            const isSelected = item.key === selectedKey;
-            const isLast = index === classes.length - 1;
-            return (
-              <Pressable
-                key={item.key}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                onPress={() => setSelectedKey(item.key)}
-                style={[
-                  styles.legendRow,
-                  { borderTopColor: isSelected ? Colors.brass : Colors.hairline },
-                  isLast && styles.legendRowLast,
-                ]}>
-                <View style={[styles.swatch, { backgroundColor: item.color }]} />
-                <Text style={[styles.legendName, { color: isSelected ? Colors.bone : Colors.ash }]}>
-                  {item.name}
-                </Text>
-                <Text
-                  style={[styles.legendActual, { color: isSelected ? Colors.bone : Colors.ash }]}>
-                  {item.actual}%
-                </Text>
-                <Text style={styles.legendTarget}>{item.target}</Text>
-              </Pressable>
-            );
-          })}
+          {classes.map((item, index) => (
+            <LegendRow
+              key={item.key}
+              item={item}
+              isSelected={item.key === selectedKey}
+              isLast={index === classes.length - 1}
+              onSelect={setSelectedKey}
+            />
+          ))}
           <View style={styles.legendHeader}>
             <Caption>Class</Caption>
             <Caption>Actual · Target</Caption>
           </View>
         </View>
 
-        <Text style={styles.setTargets}>Set targets</Text>
+        {actionable.length > 0 ? (
+          <View style={styles.rebalance}>
+            <View style={styles.sectionDivider}>
+              <Caption>To reach target</Caption>
+            </View>
+            {actionable.map((hint) => (
+              <RebalanceRow key={hint.assetClass} hint={hint} money={money} />
+            ))}
+          </View>
+        ) : null}
+
+        {isEditing ? (
+          <View style={styles.editor}>
+            <View style={styles.sectionDivider}>
+              <Caption>Targets · {draftTotal}% assigned</Caption>
+            </View>
+            {CLASS_META.map((meta) => (
+              <TargetEditorRow key={meta.key} meta={meta} value={draft[meta.key]} onAdjust={adjust} />
+            ))}
+            <View style={styles.editorActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                onPress={cancelEditor}>
+                <Text style={styles.cancel}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Save targets"
+                style={styles.saveButton}
+                onPress={save}>
+                <Text style={styles.saveLabel}>Save targets</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Set targets"
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+            onPress={openEditor}>
+            <Text style={styles.setTargets}>Set targets</Text>
+          </Pressable>
+        )}
       </ScrollView>
     </View>
   );
@@ -250,6 +378,99 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 8,
+  },
+  sectionDivider: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.hairline,
+    paddingTop: 12,
+  },
+  rebalance: {
+    marginTop: 32,
+  },
+  rebalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48,
+    gap: 14,
+  },
+  rebalanceName: {
+    flex: 1,
+    fontFamily: Fonts.manrope,
+    fontSize: 15,
+    color: Colors.bone,
+  },
+  rebalanceDrift: {
+    fontFamily: Fonts.manrope,
+    fontSize: 13,
+    color: Colors.slate,
+    fontVariant: ['tabular-nums'],
+  },
+  rebalanceAction: {
+    width: 120,
+    textAlign: 'right',
+    fontFamily: Fonts.manrope,
+    fontSize: 15,
+    fontVariant: ['tabular-nums'],
+  },
+  editor: {
+    marginTop: 32,
+  },
+  editorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    gap: 14,
+  },
+  editorName: {
+    flex: 1,
+    fontFamily: Fonts.manrope,
+    fontSize: 15,
+    color: Colors.bone,
+  },
+  stepper: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperGlyph: {
+    fontFamily: Fonts.newsreaderLight32,
+    fontSize: 24,
+    lineHeight: 28,
+    color: Colors.brass,
+  },
+  editorValue: {
+    width: 52,
+    textAlign: 'center',
+    fontFamily: Fonts.manrope,
+    fontSize: 15,
+    color: Colors.bone,
+    fontVariant: ['tabular-nums'],
+  },
+  editorActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 24,
+    marginTop: 24,
+  },
+  cancel: {
+    fontFamily: Fonts.manrope,
+    fontSize: 15,
+    color: Colors.ash,
+  },
+  saveButton: {
+    height: 48,
+    paddingHorizontal: 22,
+    backgroundColor: Colors.brass,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveLabel: {
+    fontFamily: Fonts.manropeSemiBold,
+    fontSize: 15,
+    color: Colors.ink,
   },
   setTargets: {
     textAlign: 'center',
