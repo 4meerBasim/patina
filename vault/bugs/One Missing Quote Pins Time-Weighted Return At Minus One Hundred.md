@@ -1,7 +1,7 @@
 # One Missing Quote Pins Time-Weighted Return At Minus One Hundred
 
 Status: not-fixed
-Found: `src/lib/snapshots.ts:60` composed with `src/lib/returns.ts:27`
+Found: `src/lib/snapshots.ts:60` composed with `src/lib/returns.ts:26`
 Summary: a single day with a missing price quote values the holding at zero, which drives time-weighted return to exactly −1 and keeps it there for every later period.
 
 ## Details
@@ -23,7 +23,7 @@ linked *= 1 + periodReturn;
 
 A period that *ends* at zero makes `periodReturn` exactly −1, so `linked` becomes 0 and every subsequent multiplication leaves it at 0. The function returns `linked - 1`, so the answer is −1 forever.
 
-The guard on line 26 (`if (start.value === 0) continue;`) only skips a period that *starts* at zero. Nothing protects the period that ends at zero.
+The guard on line 25 (`if (start.value === 0) continue;`) only skips a period that *starts* at zero. Nothing protects the period that ends at zero.
 
 Verified, with full recovery afterwards:
 
@@ -35,14 +35,24 @@ timeWeightedReturn(
 
 The portfolio went from 100,000 to 120,000, a real gain of 20%, and the Performance screen reports −100%.
 
-The trigger is not exotic. The app ships with a network price provider; a symbol that is delisted, renamed, rate-limited, or simply absent from the provider's coverage produces no quote. Gulf and Iraqi equities are the likely case, since [[_owner-decisions]] records that no vendor covers the Iraq Stock Exchange at all.
+## Reachability
 
-Two separate fixes, and both are probably wanted. `snapshots.ts` should distinguish "no quote" from "worth nothing" rather than collapsing both to zero — a missing quote should carry the last known price with its `asOf` date, which is what the staleness caption was designed for. And `timeWeightedReturn` should skip a period whose end value is zero rather than letting it annihilate the chain.
+Latent today, with a named trigger. Not currently reachable, and an earlier version of this note wrongly claimed it was.
+
+The shipped provider is `createSimulatedPriceProvider` (`src/data/providers/price-provider.ts:23`, wired at `providers/index.ts:28`), which returns a quote for *any* `instrumentId` it is handed. Its output goes into the in-memory `livePrices` map at `src/store/data-store.ts:331` and is never written to the `priceQuotes` table that `holdingValue` reads — the only writers to that table are `seed.ts` and the backup-import path at `data-store.ts:593`. And `seed.ts` seeds a quote for all 21 catalogue instruments, the 14 held plus the 7 in `extraPrices` at `seed.ts:149`. `addHolding` can only attach an instrument from that catalogue, so no holding can exist without a quote.
+
+So the trigger is the planned network provider in [[Real Market Price Provider]], not anything shipped. Once quotes come from a network, a delisted, renamed, rate-limited or uncovered symbol produces nothing and the fallback fires. Fix it as part of that work, not before.
+
+## Fixes
+
+`snapshots.ts` should distinguish "no quote" from "worth nothing" rather than collapsing both to zero. A missing quote should carry the last known price with its `asOf` date, which is what the staleness caption was designed for. This is the fix that matters.
+
+The obvious companion fix is wrong, and worth recording so nobody tries it. Skipping a period whose *end* value is zero leaves the zero mark as the next period's *start*, which the line-25 guard then also skips, so the chain never resumes and TWR reports 0 rather than the real +20%. Dropping zero-valued marks from the series entirely does give +0.2. But neither should be applied unconditionally: if the portfolio genuinely went to zero, −1 is the correct answer, and suppressing it would hide a real wipeout. Any guard here has to distinguish a missing valuation from a true one, which is only possible if `snapshots.ts` stops conflating them — so the first fix is the prerequisite for the second.
 
 Found by composing two modules that the suite only tests in isolation: `snapshots.test.ts:109` and `positions.test.ts:505` each document the zero fallback, and `returns.test.ts:115` asserts the −1 while framing it as "without producing NaN". No test puts them together.
 
 ## Related
+- Bug: [[Money-Weighted Return Is Absurd Or Absent On Short Windows]], [[Time-Weighted Return Overstates Gains When A Flow Has No Valuation Mark]]
 - Feature: [[Returns Engine]], [[Daily Net Worth Snapshots]], [[Offline Price Provider]]
 - Enhancement: [[Real Market Price Provider]]
-- Bug: [[Money-Weighted Return Is Null For Ordinary Short-Window Gains]]
 - Page: [[Editorial Performance]]
