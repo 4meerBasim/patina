@@ -39,23 +39,36 @@ The portfolio went from 100,000 to 120,000, a real gain of 20%, and the Performa
 
 **Reachable today through a shipped action.** Two triggers, one live and one planned.
 
-**Live: importing a backup.** `parseJson` (`src/lib/backup.ts:69`) validates only that `version` is a number and `holdings` is an array. Everything else defaults away silently:
+**Live: importing a backup.** `parseJson` (`src/lib/backup.ts:68`) validates only that `version` is a number and `holdings` is an array. Everything else defaults away silently:
 
 ```ts
 priceQuotes: parsed.priceQuotes ?? [],
 ```
 
-`importBackup` (`src/store/data-store.ts:578`) then calls `deleteAllRows` and inserts whatever the file held. A truncated, hand-edited, or partially-written backup whose `holdings` and `snapshots` survive but whose `priceQuotes` are missing produces exactly the series this note describes: a non-zero history with today's mark at zero, and TWR pinned at −1 for every later day. `parseCsvBackup` is laxer still — its `table()` helper returns `[]` for any missing `#TABLE:` block with no validation at all.
+`importBackup` (`src/store/data-store.ts:578`) then calls `deleteAllRows` and inserts whatever the file held, snapshots included at `:594`. A truncated, hand-edited, or partially-written backup whose `holdings` and `snapshots` survive but whose `priceQuotes` are missing produces exactly the series this note describes.
 
-"Import data" is a labelled action on both settings screens (`src/app/editorial/settings.tsx:141`, `src/app/native/settings.tsx:224`, via `use-data-management.ts:33`). [[Extract The Backup Codec For Testing]] already treats a hand-edited backup as a real scenario; this is the same input class.
+The `computeSnapshot(todayIso(), …)` call straight after the transaction (`data-store.ts:599`) looks like it might repair this. It does the opposite: it **manufactures** the zero. It is fed `priceQuotes: loaded.priceQuotes` — the imported, empty table — so `holdingValue` returns `quantity * 0` and today's mark is zero. `mergeSnapshot` (`src/store/data-store.ts:177`) replaces only the same-date row and appends otherwise, so the imported history survives untouched and a zero is tacked onto the end of it. Even a backup whose own snapshots end at a healthy value gets a zero appended at import. Nothing repairs `priceQuotes` afterwards — `seed.ts` writes only to an empty database, and `livePrices` feeds `selectTopMovers` alone — so the hole survives restarts and each later `hydrate` recomputes the same zero for its own day.
+
+`parseCsvBackup` is laxer still, returning `[]` for any missing `#TABLE:` block with no validation at all, but it is currently unreachable through the shipped control: `src/lib/use-data-management.ts:26` filters the picker to `application/json`, and `readBackup` dispatches to the CSV parser only on a `.csv` extension.
+
+"Import data" is a labelled action on both settings screens (`src/app/editorial/settings.tsx:141`, `src/app/native/settings.tsx:224`, via `src/lib/use-data-management.ts:33`), and both routes are navigable. Only the editorial shell closes the loop, though: `timeWeightedReturn` is imported by exactly one screen, `src/app/editorial/performance.tsx`, which reads `useSnapshots()` at `:40`, maps `totalNetWorth` into valuations at `:63` and renders the result at `:142`. The native shell has no performance screen, so importing from native settings corrupts the shared store without displaying the −100%.
+
+[[Extract The Backup Codec For Testing]] already treats a hand-edited backup as a real scenario; this is the same input class.
 
 **Planned: a network price provider.** The provider chain cannot trip it today. `createSimulatedPriceProvider` (`src/data/providers/price-provider.ts:23`, wired at `providers/index.ts:28`) returns a quote for *any* `instrumentId`, its output goes into the in-memory `livePrices` map at `data-store.ts:331` and never reaches the `priceQuotes` table `holdingValue` reads, and `seed.ts` covers all 21 catalogue instruments — the 14 held plus the 7 in `extraPrices` at `seed.ts:149`. Once quotes come from a network, a delisted, renamed, rate-limited or uncovered symbol produces nothing and the fallback fires. See [[Real Market Price Provider]].
 
-Two earlier versions of this note got this section wrong in opposite directions: the first claimed a network provider already shipped, the second concluded "not currently reachable" after checking only the provider chain and treating `data-store.ts:593` as merely a writer rather than the one path that can leave `priceQuotes` under-populated relative to `holdings`. Validating the import at the system boundary — which `foundation/code.md` requires anyway — removes the live trigger independently of the snapshot fix below.
+Two earlier versions of this note got this section wrong in opposite directions: the first claimed a network provider already shipped, the second concluded "not currently reachable" after checking only the provider chain and treating `data-store.ts:593` as merely a writer rather than the one path that can leave `priceQuotes` under-populated relative to `holdings`.
 
 ## Fixes
 
-`snapshots.ts` should distinguish "no quote" from "worth nothing" rather than collapsing both to zero. A missing quote should carry the last known price with its `asOf` date, which is what the staleness caption was designed for. This is the fix that matters.
+**Validate at the import boundary**, which `foundation/code.md` requires anyway. This closes the live trigger, but only if scoped wider than `priceQuotes`:
+
+- `holdingValue` has *two* zero arms. `snapshots.ts:60` is the quote arm; `snapshots.ts:62` is `latestValuations.get(holding.id)?.value ?? 0` for holdings with a null `instrumentId` (`src/data/types.ts:38`). `parseJson` defaults `valuations` to `[]` as well, so a backup with holdings but no valuations produces an identical zero. Validation scoped only to "a quote per referenced instrument" leaves that arm wide open.
+- Partial coverage is a third variant: quotes for some instruments but not all gives an understated mark rather than a zero, so a spurious step-down period return instead of −1. Requiring full coverage closes that too.
+
+**It is not sufficient on its own.** Imported `snapshots` rows are written verbatim and a zero day is exactly what one import persists, so exporting that device carries the zero into the next one inside a perfectly well-formed backup — holdings, quotes and snapshots all present and schema-valid. Holdings-versus-quotes validation never inspects snapshot values. The snapshot fix below therefore stays load-bearing.
+
+**`snapshots.ts` should distinguish "no quote" from "worth nothing"** rather than collapsing both to zero. A missing quote should carry the last known price with its `asOf` date, which is what the staleness caption was designed for. This is the fix that matters.
 
 The obvious companion fix is wrong, and worth recording so nobody tries it. Skipping a period whose *end* value is zero leaves the zero mark as the next period's *start*, which the line-25 guard then also skips, so the chain never resumes and TWR reports 0 rather than the real +20%. Dropping zero-valued marks from the series entirely does give +0.2. But neither should be applied unconditionally: if the portfolio genuinely went to zero, −1 is the correct answer, and suppressing it would hide a real wipeout. Any guard here has to distinguish a missing valuation from a true one. A local inference gets most of the way without touching `snapshots.ts`: a zero mark followed by a non-zero mark with no intervening inflow cannot be a genuine wipeout, since a wiped-out portfolio cannot recover without one. That rule gives +0.2 on the spurious case, −1 on a plain wipeout, and −1 on a wipeout followed by re-funding. So the first fix makes the second far more robust rather than being strictly required for it.
 
