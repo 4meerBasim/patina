@@ -9,3 +9,4 @@ Summary: User settings that survive restart — locale, numeral system, base cur
 ## Related
 - Page: [[Editorial Settings]], [[Native Settings]], [[Editorial Home]]
 - Features: [[Settings Toggles]], [[App State Store]], [[Money and Numeral Formatting]], [[Local SQLite Persistence]]
+- Bugs: [[Dividend Calendar Sums Foreign Currency Without FX]], [[Rebalance Does Not Normalise Targets Over 100]]

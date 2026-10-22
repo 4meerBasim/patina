@@ -6,5 +6,5 @@ Summary: Design screen 1j: dated insight notes (Concentration, Milestone, Fees, 
 ## Related
 - Connects to: [[Editorial Home]], [[Editorial Portfolio]], [[Editorial Goals]], [[Editorial Add Holding]], [[Editorial Allocation]]
 - Features: [[Editorial Tab Bar]], [[Design Tokens and Fonts]], [[Domain Data Model]], [[Local SQLite Persistence]], [[App State Store]]
-- Bugs: none known
+- Bugs: [[Pace Note Reads Running Behind Of Schedule]]
 - Enhancements: [[Native Style for Remaining Screens]]

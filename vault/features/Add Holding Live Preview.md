@@ -11,4 +11,4 @@ Both sheets are transparent modals that slide up over 400 ms on the Settle curve
 ## Related
 - Page: [[Editorial Add Holding]], [[Native Add Holding]]
 - Enhancements: [[Conversational Add Holding Steps]], [[Digit Drift Animation]]
-- Bugs: none known
+- Bugs: [[Keyboard Covers Add Holding Fields]], [[Sub-Cent Accumulation Lands A Cent Low]], [[formatDollars Loses Precision On Very Large Values]], [[formatDollars Puts The Sign After The Dollar Symbol]], [[formatDollars Renders Negative Zero As $-0]], [[formatDollars Signs With Ascii Hyphen While money.ts Uses U+2212]], [[parseAmount Returns Negative Zero]]

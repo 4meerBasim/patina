@@ -9,3 +9,4 @@ Summary: The TypeScript domain model — every entity and union the app's data l
 ## Related
 - Page: [[Editorial Home]], [[Editorial Portfolio]], [[Editorial Holding Detail]], [[Editorial Add Holding]], [[Editorial Allocation]], [[Editorial Goals]], [[Editorial Notes]], [[Editorial Activity]], [[Editorial Performance]], [[Native Home]], [[Native Portfolio]], [[Native Holding Detail]], [[Native Add Holding]], [[Native Goals]]
 - Features: [[Local SQLite Persistence]], [[App State Store]]
+- Bugs: [[Dividend Calendar Sums Foreign Currency Without FX]], [[Oversell Drops The Unmatched Proceeds]]

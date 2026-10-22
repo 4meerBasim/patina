@@ -9,3 +9,4 @@ Summary: A Zustand store that hydrates every entity from SQLite and exposes it t
 ## Related
 - Page: [[Editorial Home]], [[Editorial Portfolio]], [[Editorial Holding Detail]], [[Editorial Add Holding]], [[Editorial Allocation]], [[Editorial Goals]], [[Editorial Notes]], [[Editorial Activity]], [[Editorial Performance]], [[Native Home]], [[Native Portfolio]], [[Native Holding Detail]], [[Native Add Holding]], [[Native Goals]]
 - Features: [[Domain Data Model]], [[Local SQLite Persistence]], [[Daily Net Worth Snapshots]], [[Persisted Settings]]
+- Bugs: [[Rebalance Does Not Normalise Targets Over 100]], [[Rebalance Suggests A Sell At Zero Net Worth]]
