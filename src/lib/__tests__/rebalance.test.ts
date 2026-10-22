@@ -119,7 +119,7 @@ describe('computeRebalance', () => {
     expect(result.map((hint) => hint.action)).toEqual(['sell', 'hold', 'sell', 'hold', 'hold']);
   });
 
-  // Bug: computeRebalance neither validates nor normalises targets, so a set summing over 100 asks for more buying than net worth exists — asserts current behaviour
+  // Bug: Rebalance Does Not Normalise Targets Over 100 — asserts current behaviour
   it('asks to buy more than net worth when the targets sum to more than one hundred', () => {
     const result = computeRebalance({
       allocation: [
@@ -138,7 +138,7 @@ describe('computeRebalance', () => {
     expect(result.map((hint) => hint.action)).toEqual(['buy', 'buy', 'buy', 'hold', 'hold']);
   });
 
-  // Bug: a zero net worth yields action 'sell' with a delta of 0, suggesting a trade that cannot happen — asserts current behaviour
+  // Bug: Rebalance Suggests A Sell At Zero Net Worth — asserts current behaviour
   it('keeps every figure finite when net worth is zero', () => {
     const result = computeRebalance({
       allocation: [

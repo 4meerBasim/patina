@@ -149,7 +149,7 @@ describe('computeDividendCalendar', () => {
     expect(result[11]).toEqual({ month: '2026-10', amount: 12 });
   });
 
-  // Bug: calendar adds foreign-currency dividend amounts to base-currency ones without FX conversion — asserts current behaviour
+  // Bug: Dividend Calendar Sums Foreign Currency Without FX — asserts current behaviour
   it('adds a dividend paid in another currency straight onto the base-currency total', () => {
     const result = computeDividendCalendar({
       today: '2026-10-15',

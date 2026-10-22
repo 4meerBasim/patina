@@ -254,25 +254,39 @@ describe('moneyWeightedReturn', () => {
     expect(mwr).toBeNull();
   });
 
-  it('never reports NaN or infinity for a pathological rate', () => {
-    const cases: (number | null)[] = [
-      moneyWeightedReturn([{ date: JAN, amount: 1000 }], { date: NEXT_JAN, value: 0 }),
+  it('reports no rate for a total loss', () => {
+    expect(moneyWeightedReturn([{ date: JAN, amount: 1000 }], { date: NEXT_JAN, value: 0 })).toBeNull();
+  });
+
+  it('reports no rate for a gain over an hour, which annualises past the bracket', () => {
+    expect(
       moneyWeightedReturn([{ date: JAN, amount: 100 }], {
         date: '2020-01-01T01:00:00.000Z',
         value: 200,
       }),
-      moneyWeightedReturn([{ date: JAN, amount: 1000 }], { date: JAN, value: 1100 }),
+    ).toBeNull();
+  });
+
+  it('reports no rate for a zero-length period', () => {
+    expect(moneyWeightedReturn([{ date: JAN, amount: 1000 }], { date: JAN, value: 1100 })).toBeNull();
+  });
+
+  it('reports no rate when the end value rounds to nothing', () => {
+    expect(
       moneyWeightedReturn([{ date: JAN, amount: 1000 }], {
         date: ONE_YEAR_LATER,
         value: 0.000001,
       }),
-    ];
+    ).toBeNull();
+  });
 
-    for (const result of cases) {
-      if (result !== null) {
-        expect(Number.isFinite(result)).toBe(true);
-      }
-    }
+  it('returns a finite rate, never NaN, when a solution does exist', () => {
+    const mwr = moneyWeightedReturn([{ date: JAN, amount: 1000 }], {
+      date: ONE_YEAR_LATER,
+      value: 1100,
+    });
+    expect(mwr).not.toBeNull();
+    expect(Number.isFinite(mwr as number)).toBe(true);
   });
 
   it('solves a multi-contribution schedule to a rate that zeroes the net present value', () => {
