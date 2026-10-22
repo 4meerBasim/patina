@@ -8,5 +8,6 @@ The Native tab bar draws a Notes tab, but turn 2 has no Notes screen, so the tab
 
 ## Related
 - Page: [[Native Home]], [[Native Portfolio]], [[Native Goals]]
-- Features: [[Native Glass Tab Bar]]
+- Features: [[Insight Rules Engine]], [[Native Glass Tab Bar]]
+- Bugs: [[Pace Note Reads Running Behind Of Schedule]]
 - Enhancements: [[Native Style for Remaining Screens]]

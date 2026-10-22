@@ -5,6 +5,6 @@ Summary: Design screen 2f: profile card, linked accounts, static Language/Numera
 
 ## Related
 - Connects to: [[Native Home]]
-- Features: [[Settings Toggles]], [[Design Tokens and Fonts]], [[Persisted Settings]], [[Seeded FX Rates]], [[Money and Numeral Formatting]]
+- Features: [[Design Tokens and Fonts]], [[Full Export And Delete]], [[Money and Numeral Formatting]], [[Persisted Settings]], [[Seeded FX Rates]], [[Settings Toggles]]
 - Bugs: none known
-- Enhancements: [[Privacy Blur on Launch]]
+- Enhancements: [[Extract The Backup Codec For Testing]], [[Privacy Blur on Launch]]

@@ -8,5 +8,5 @@ Summary: Local search over the seeded instruments by symbol or name, feeding the
 
 ## Related
 - Page: [[Editorial Add Holding]], [[Native Add Holding]]
-- Features: [[Offline Price Provider]]
+- Features: [[Offline Price Provider]], [[Ticker Search in Add Holding]]
 - Bugs: [[Native Add Hardwired To Apple]]

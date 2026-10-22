@@ -9,4 +9,5 @@ Summary: Simulated instrument quotes generated on-device so the app shows live-l
 ## Related
 - Page: [[Editorial Home]], [[Editorial Portfolio]], [[Native Home]], [[Native Portfolio]], [[Editorial Holding Detail]], [[Native Holding Detail]]
 - Features: [[Instrument Search]]
+- Bugs: [[One Missing Quote Pins Time-Weighted Return At Minus One Hundred]]
 - Enhancements: [[Real Market Price Provider]]

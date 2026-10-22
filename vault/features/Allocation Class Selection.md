@@ -9,4 +9,4 @@ Summary: Selecting an asset class highlights its arc on the allocation ring and 
 ## Related
 - Page: [[Editorial Allocation]]
 - Enhancements: [[Allocation Ring Drill-Down]]
-- Bugs: none known
+- Bugs: [[Rebalance Does Not Normalise Targets Over 100]], [[Rebalance Suggests A Sell At Zero Net Worth]]
