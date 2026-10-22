@@ -20,7 +20,7 @@ The trigger is narrower than "any half-cent value", and the severity should be r
 
 So the practical exposure is a rare one-cent display error, not a systematic one. What makes it worth a note is the cause rather than the frequency: the number of digits shown is chosen by a rounding that the digits themselves do not use. The same `Math.round(value * 100)` tie-sensitivity drives [[Sub-Cent Accumulation Lands A Cent Low]], and the fix is the same in kind — decide the digit count from the value `Intl` will actually render, not from a separate hand-rolled rounding.
 
-Twenty-four of the twenty-six `formatCurrency` calls in `src/app/native/` reach this path, since they pass no fraction-digit options; see [[Currency Drops The Trailing Cent Zero]] for the call sites. No write was traced through this function — it is display only.
+Twenty-four of the twenty-six `formatCurrency` call sites in `src/app/native/` reach this path, since they pass no fraction-digit options; see [[Currency Drops The Trailing Cent Zero]] for the call sites. No write was traced through this function — it is display only.
 
 Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR.
 
