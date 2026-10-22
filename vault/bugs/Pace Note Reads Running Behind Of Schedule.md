@@ -1,7 +1,7 @@
 # Pace Note Reads Running Behind Of Schedule
 
 Status: not-fixed
-Found: `src/lib/insights.ts:140`
+Found: `src/lib/insights.ts:147`
 Summary: the goal pace note interpolates the pace word into a fixed sentence, which reads correctly for `ahead` and ungrammatically for `behind`.
 
 ## Details
