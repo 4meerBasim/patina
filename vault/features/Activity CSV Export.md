@@ -8,5 +8,5 @@ Summary: Export turns the visible activity rows into CSV and hands it to the sys
 
 ## Related
 - Page: [[Editorial Activity]]
-- Features: [[Activity Filter Chips]]
+- Features: [[Activity Filter Chips]], [[Full Export And Delete]]
 - Bugs: [[Activity CSV Export Not Machine Readable]]

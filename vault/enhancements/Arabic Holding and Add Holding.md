@@ -9,3 +9,5 @@ Mobile Screens "Try next" on turn 1: "show 1e and 1f in Arabic". Today only Home
 ## Related
 - Page: [[Editorial Holding Detail]], [[Editorial Add Holding]]
 - Features: [[Arabic RTL Home]]
+- Bugs: [[Pace Note Reads Running Behind Of Schedule]]
+- Enhancements: [[Test Formatters Against Hermes]]

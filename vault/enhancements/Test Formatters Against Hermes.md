@@ -14,6 +14,6 @@ Not solvable inside the current harness, which is pure-logic by design and runs 
 Worth doing before any release that claims Arabic support, not before.
 
 ## Related
+- Bug: [[Arabic Hero Currency Jumps On Android]], [[Currency Drops The Trailing Cent Zero]], [[Half-Cent Value Loses Its Cents In Currency Output]], [[Negative Sub-Cent Renders As Minus Zero]], [[Percent Ignores maximumFractionDigits Unless Minimum Is Also Passed]], [[Sub-Cent Accumulation Lands A Cent Low]], [[formatDollars Loses Precision On Very Large Values]], [[formatDollars Signs With Ascii Hyphen While money.ts Uses U+2212]]
 - Feature: [[Money and Numeral Formatting]], [[Arabic RTL Home]]
 - Enhancement: [[Arabic Holding and Add Holding]]
-- Bug: [[Arabic Hero Currency Jumps On Android]]

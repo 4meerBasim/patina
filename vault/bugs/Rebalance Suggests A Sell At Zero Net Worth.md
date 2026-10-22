@@ -32,4 +32,4 @@ Not fixed in the harness PR, which carries no behaviour changes. The test assert
 ## Related
 - Feature: [[Allocation Class Selection]], [[Demo Seed Data]], [[App State Store]], [[Local SQLite Persistence]]
 - Bug: [[Rebalance Does Not Normalise Targets Over 100]]
-- Page: [[Editorial Allocation]], [[Editorial Onboarding]]
+- Page: [[Editorial Allocation]]

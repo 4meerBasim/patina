@@ -34,6 +34,6 @@ Latent rather than live, and worth fixing because the asymmetry will bite the mo
 Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note.
 
 ## Related
+- Bug: [[formatDollars Puts The Sign After The Dollar Symbol]], [[formatDollars Signs With Ascii Hyphen While money.ts Uses U+2212]], [[parseAmount Returns Negative Zero]]
 - Feature: [[Money and Numeral Formatting]]
-- Bug: [[formatDollars Signs With Ascii Hyphen While money.ts Uses U+2212]], [[parseAmount Returns Negative Zero]]
 - Page: [[Native Holding Detail]], [[Editorial Holding Detail]]

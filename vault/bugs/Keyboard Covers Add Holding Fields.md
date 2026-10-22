@@ -9,5 +9,4 @@ Both sheets are offset from the top (editorial 70pt, native 64pt) but their `Key
 
 ## Related
 - Feature: [[Add Holding Live Preview]]
-- Page: [[Editorial Add Holding]]
-- Page: [[Native Add Holding]]
+- Page: [[Editorial Add Holding]], [[Native Add Holding]]
