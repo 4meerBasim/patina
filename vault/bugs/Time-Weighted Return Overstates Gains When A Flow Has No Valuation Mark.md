@@ -1,7 +1,7 @@
 # Time-Weighted Return Overstates Gains When A Flow Has No Valuation Mark
 
 Status: not-fixed
-Found: `src/lib/returns.ts:27`
+Found: `src/lib/returns.ts:26`
 Summary: a contribution inside a period is subtracted from the end value but never added to the denominator, so a mid-period deposit with no valuation mark at its date inflates the reported return.
 
 ## Details
@@ -22,5 +22,5 @@ Lower severity than the two sibling return bugs: it skews a figure rather than d
 
 ## Related
 - Feature: [[Returns Engine]], [[Daily Net Worth Snapshots]]
-- Bug: [[One Missing Quote Pins Time-Weighted Return At Minus One Hundred]], [[Money-Weighted Return Is Null For Ordinary Short-Window Gains]]
+- Bug: [[One Missing Quote Pins Time-Weighted Return At Minus One Hundred]], [[Money-Weighted Return Is Absurd Or Absent On Short Windows]]
 - Page: [[Editorial Performance]]
