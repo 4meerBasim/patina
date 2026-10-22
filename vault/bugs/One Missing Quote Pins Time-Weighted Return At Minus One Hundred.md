@@ -37,17 +37,27 @@ The portfolio went from 100,000 to 120,000, a real gain of 20%, and the Performa
 
 ## Reachability
 
-Latent today, with a named trigger. Not currently reachable, and an earlier version of this note wrongly claimed it was.
+**Reachable today through a shipped action.** Two triggers, one live and one planned.
 
-The shipped provider is `createSimulatedPriceProvider` (`src/data/providers/price-provider.ts:23`, wired at `providers/index.ts:28`), which returns a quote for *any* `instrumentId` it is handed. Its output goes into the in-memory `livePrices` map at `src/store/data-store.ts:331` and is never written to the `priceQuotes` table that `holdingValue` reads — the only writers to that table are `seed.ts` and the backup-import path at `data-store.ts:593`. And `seed.ts` seeds a quote for all 21 catalogue instruments, the 14 held plus the 7 in `extraPrices` at `seed.ts:149`. `addHolding` can only attach an instrument from that catalogue, so no holding can exist without a quote.
+**Live: importing a backup.** `parseJson` (`src/lib/backup.ts:69`) validates only that `version` is a number and `holdings` is an array. Everything else defaults away silently:
 
-So the trigger is the planned network provider in [[Real Market Price Provider]], not anything shipped. Once quotes come from a network, a delisted, renamed, rate-limited or uncovered symbol produces nothing and the fallback fires. Fix it as part of that work, not before.
+```ts
+priceQuotes: parsed.priceQuotes ?? [],
+```
+
+`importBackup` (`src/store/data-store.ts:578`) then calls `deleteAllRows` and inserts whatever the file held. A truncated, hand-edited, or partially-written backup whose `holdings` and `snapshots` survive but whose `priceQuotes` are missing produces exactly the series this note describes: a non-zero history with today's mark at zero, and TWR pinned at −1 for every later day. `parseCsvBackup` is laxer still — its `table()` helper returns `[]` for any missing `#TABLE:` block with no validation at all.
+
+"Import data" is a labelled action on both settings screens (`src/app/editorial/settings.tsx:141`, `src/app/native/settings.tsx:224`, via `use-data-management.ts:33`). [[Extract The Backup Codec For Testing]] already treats a hand-edited backup as a real scenario; this is the same input class.
+
+**Planned: a network price provider.** The provider chain cannot trip it today. `createSimulatedPriceProvider` (`src/data/providers/price-provider.ts:23`, wired at `providers/index.ts:28`) returns a quote for *any* `instrumentId`, its output goes into the in-memory `livePrices` map at `data-store.ts:331` and never reaches the `priceQuotes` table `holdingValue` reads, and `seed.ts` covers all 21 catalogue instruments — the 14 held plus the 7 in `extraPrices` at `seed.ts:149`. Once quotes come from a network, a delisted, renamed, rate-limited or uncovered symbol produces nothing and the fallback fires. See [[Real Market Price Provider]].
+
+Two earlier versions of this note got this section wrong in opposite directions: the first claimed a network provider already shipped, the second concluded "not currently reachable" after checking only the provider chain and treating `data-store.ts:593` as merely a writer rather than the one path that can leave `priceQuotes` under-populated relative to `holdings`. Validating the import at the system boundary — which `foundation/code.md` requires anyway — removes the live trigger independently of the snapshot fix below.
 
 ## Fixes
 
 `snapshots.ts` should distinguish "no quote" from "worth nothing" rather than collapsing both to zero. A missing quote should carry the last known price with its `asOf` date, which is what the staleness caption was designed for. This is the fix that matters.
 
-The obvious companion fix is wrong, and worth recording so nobody tries it. Skipping a period whose *end* value is zero leaves the zero mark as the next period's *start*, which the line-25 guard then also skips, so the chain never resumes and TWR reports 0 rather than the real +20%. Dropping zero-valued marks from the series entirely does give +0.2. But neither should be applied unconditionally: if the portfolio genuinely went to zero, −1 is the correct answer, and suppressing it would hide a real wipeout. Any guard here has to distinguish a missing valuation from a true one, which is only possible if `snapshots.ts` stops conflating them — so the first fix is the prerequisite for the second.
+The obvious companion fix is wrong, and worth recording so nobody tries it. Skipping a period whose *end* value is zero leaves the zero mark as the next period's *start*, which the line-25 guard then also skips, so the chain never resumes and TWR reports 0 rather than the real +20%. Dropping zero-valued marks from the series entirely does give +0.2. But neither should be applied unconditionally: if the portfolio genuinely went to zero, −1 is the correct answer, and suppressing it would hide a real wipeout. Any guard here has to distinguish a missing valuation from a true one. A local inference gets most of the way without touching `snapshots.ts`: a zero mark followed by a non-zero mark with no intervening inflow cannot be a genuine wipeout, since a wiped-out portfolio cannot recover without one. That rule gives +0.2 on the spurious case, −1 on a plain wipeout, and −1 on a wipeout followed by re-funding. So the first fix makes the second far more robust rather than being strictly required for it.
 
 Found by composing two modules that the suite only tests in isolation: `snapshots.test.ts:109` and `positions.test.ts:505` each document the zero fallback, and `returns.test.ts:115` asserts the −1 while framing it as "without producing NaN". No test puts them together.
 
