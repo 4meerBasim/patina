@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import Animated, { Easing, SlideInDown } from 'react-native-reanimated';
 
+import { DriftingFigure } from '@/components/drifting-figure';
 import { Caption } from '@/components/editorial/caption';
 import { InstrumentSearch } from '@/components/editorial/instrument-search';
 import { Colors, Fonts } from '@/constants/theme';
@@ -194,10 +195,15 @@ export default function AddHoldingScreen() {
                 </View>
               </View>
 
-              <Text style={styles.live}>
-                That&apos;s <Text style={styles.liveTotal}>{formatDollars(total)}</Text> ·{' '}
-                {weight.toFixed(2)}% of net worth
-              </Text>
+              <View style={styles.liveRow}>
+                <Text style={styles.live}>That&apos;s </Text>
+                <DriftingFigure
+                  value={formatDollars(total)}
+                  amount={total}
+                  style={[styles.live, styles.liveTotal]}
+                />
+                <Text style={styles.live}>{` · ${weight.toFixed(2)}% of net worth`}</Text>
+              </View>
 
               <View style={styles.spacer} />
 
@@ -309,13 +315,18 @@ const styles = StyleSheet.create({
   fieldBlurred: {
     borderBottomColor: Colors.hairline,
   },
+  liveRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    marginTop: 20,
+  },
   live: {
     fontFamily: Fonts.manrope,
     fontSize: 15,
     lineHeight: 22,
     color: Colors.ash,
     fontVariant: ['tabular-nums'],
-    marginTop: 20,
   },
   liveTotal: {
     color: Colors.bone,

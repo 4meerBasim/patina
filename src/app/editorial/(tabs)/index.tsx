@@ -12,6 +12,7 @@ import {
 import Svg, { Defs, LinearGradient, Line, Path, Stop } from 'react-native-svg';
 
 import { Caption } from '@/components/editorial/caption';
+import { DriftingFigure } from '@/components/drifting-figure';
 import { DirectionView } from '@/components/editorial/direction-view';
 import { useLocale } from '@/components/editorial/locale';
 import { PeriodSelector } from '@/components/editorial/period-selector';
@@ -205,9 +206,6 @@ function EnglishHome() {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  const dot = hero.lastIndexOf('.');
-  const heroWhole = hero.slice(0, dot);
-  const heroFraction = hero.slice(dot);
   const figures = useFigureMask();
 
   const concentration = notes.find((note) => note.kind === 'concentration');
@@ -254,16 +252,17 @@ function EnglishHome() {
           accessibilityHint={figures.accessibilityHint}
           onPress={figures.onPress}
           onLongPress={figures.onLongPress}>
-          <Text style={styles.hero}>
-            {figures.hidden ? (
-              figures.mask(hero)
-            ) : (
-              <>
-                {heroWhole}
-                <Text style={styles.heroDecimal}>{heroFraction}</Text>
-              </>
-            )}
-          </Text>
+          {figures.hidden ? (
+            <Text style={styles.hero}>{figures.mask(hero)}</Text>
+          ) : (
+            <DriftingFigure
+              value={hero}
+              amount={netWorth.total}
+              style={styles.hero}
+              tailStyle={styles.heroDecimal}
+              accessibilityLabel={`Net worth ${hero}`}
+            />
+          )}
         </Pressable>
         <View style={styles.deltas}>
           <Text style={[styles.delta, periodDelta.amount >= 0 ? styles.gain : styles.loss]}>
@@ -428,9 +427,6 @@ function ArabicHome() {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  const sep = heroNumber.lastIndexOf('٫');
-  const heroWhole = heroNumber.slice(0, sep);
-  const heroFraction = heroNumber.slice(sep);
   const figures = useFigureMask();
   const heroCurrency = formatCurrency(netWorth.total, baseCurrency, {
     locale: 'ar',
@@ -491,19 +487,20 @@ function ArabicHome() {
             accessibilityHint={figures.accessibilityHint}
             onPress={figures.onPress}
             onLongPress={figures.onLongPress}>
-            <Text style={styles.arHero}>
-              {'⁦'}
-              {figures.hidden ? (
-                figures.mask(heroNumber)
-              ) : (
-                <>
-                  {heroWhole}
-                  <Text style={styles.heroDecimal}>{heroFraction}</Text>{' '}
-                  <Text style={styles.arHeroCurrency}>{symbol}</Text>
-                </>
-              )}
-              {'⁩'}
-            </Text>
+            {figures.hidden ? (
+              <Text style={styles.arHero}>{`⁦${figures.mask(heroNumber)}⁩`}</Text>
+            ) : (
+              <View style={styles.arHeroRow}>
+                <DriftingFigure
+                  value={`⁦${heroNumber}⁩`}
+                  amount={netWorth.total}
+                  style={styles.arHero}
+                  tailStyle={styles.heroDecimal}
+                  accessibilityLabel={`صافي الثروة ${heroNumber}`}
+                />
+                <Text style={styles.arHeroCurrency}>{symbol}</Text>
+              </View>
+            )}
           </Pressable>
           <View style={styles.deltas}>
             <Text style={[styles.arDelta, periodDelta.amount >= 0 ? styles.gain : styles.loss]}>
@@ -697,6 +694,11 @@ const styles = StyleSheet.create({
   },
   heroDecimal: {
     color: Colors.slate,
+  },
+  arHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
   },
   arHeroCurrency: {
     fontFamily: Fonts.plexArabic,

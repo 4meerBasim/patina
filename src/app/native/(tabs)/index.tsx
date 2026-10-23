@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { Glass } from '@/components/native/glass';
+import { DriftingFigure } from '@/components/drifting-figure';
 import { GroupedCard, KeyValueRow, RowSeparator } from '@/components/native/grouped-list';
 import { SegmentedControl } from '@/components/native/segmented-control';
 import { AssetClassColors, Colors, Fonts } from '@/constants/theme';
@@ -120,9 +121,6 @@ export default function NativeHome() {
   const marketGain = recap.market >= 0;
 
   const hero = formatCurrency(netWorth.total, settings.baseCurrency);
-  const decimalAt = hero.lastIndexOf('.');
-  const heroWhole = decimalAt >= 0 ? hero.slice(0, decimalAt) : hero;
-  const heroCents = decimalAt >= 0 ? hero.slice(decimalAt) : '';
   const figures = useFigureMask();
 
   const allocation = useMemo(
@@ -166,16 +164,17 @@ export default function NativeHome() {
             accessibilityHint={figures.accessibilityHint}
             onPress={figures.onPress}
             onLongPress={figures.onLongPress}>
-            <Text style={styles.heroValue}>
-              {figures.hidden ? (
-                figures.mask(hero)
-              ) : (
-                <>
-                  {heroWhole}
-                  <Text style={styles.heroCents}>{heroCents}</Text>
-                </>
-              )}
-            </Text>
+            {figures.hidden ? (
+              <Text style={styles.heroValue}>{figures.mask(hero)}</Text>
+            ) : (
+              <DriftingFigure
+                value={hero}
+                amount={netWorth.total}
+                style={styles.heroValue}
+                tailStyle={styles.heroCents}
+                accessibilityLabel={`Total ${hero}`}
+              />
+            )}
           </Pressable>
           <View style={styles.chips}>
             <View style={[styles.chip, monthGain ? styles.gainChip : styles.lossChip]}>
