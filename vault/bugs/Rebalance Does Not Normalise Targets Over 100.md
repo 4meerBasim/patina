@@ -1,6 +1,6 @@
 # Rebalance Does Not Normalise Targets Over 100
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/rebalance.ts:43`
 Summary: `computeRebalance` multiplies each target percentage by net worth without checking that the targets sum to 100, so a set summing higher asks the user to buy more than they own.
 
@@ -29,7 +29,15 @@ The default targets ship summing to 100 (`src/lib/rebalance.ts:4`–`:10`: 40 + 
 
 The fix has a product decision inside it: normalise the targets pro rata, cap the deltas at available net worth, or block the save above 100 and tell the user. The last is the only one that does not silently alter what the user typed.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR.
+## Fix
+
+Fixed on `fix/rebalance-targets`. The product decision: **block the save, and withhold the advice** — the two options that do not rewrite what the user typed.
+
+The editor now refuses a draft over 100. `save` returns early above it, the button is disabled with `accessibilityState` set to match, and the existing total caption reads `Targets · 120% assigned · over 100%` so the reason is on screen where the stepper is.
+
+`computeRebalance` holds every class when the stored targets sum above 100, since no set of trades reaches a portfolio larger than the one that exists. The hints still report `targetPercent` and `targetValue` exactly as entered — nothing is normalised, so the legend keeps showing the user their own figures — only the buy and sell actions are withheld. Targets that already sat above 100 before this change, or that arrive through an import, land on that path, so the allocation screen names the situation in place of the hint rows: `Targets add up to 120% of net worth. Lower them to 100% to see what to trade.`
+
+The sub-100 case is untouched: a deliberate cash buffer still produces sells, which the suite covers.
 
 ## Related
 - Feature: [[Allocation Class Selection]], [[Persisted Settings]], [[App State Store]]

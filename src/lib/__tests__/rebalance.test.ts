@@ -119,8 +119,7 @@ describe('computeRebalance', () => {
     expect(result.map((hint) => hint.action)).toEqual(['sell', 'hold', 'sell', 'hold', 'hold']);
   });
 
-  // Bug: Rebalance Does Not Normalise Targets Over 100 — asserts current behaviour
-  it('asks to buy more than net worth when the targets sum to more than one hundred', () => {
+  it('advises nothing when the targets sum to more than one hundred', () => {
     const result = computeRebalance({
       allocation: [
         { assetClass: 'stocks', value: 40000, weight: 40 },
@@ -133,13 +132,29 @@ describe('computeRebalance', () => {
       netWorth: 100000,
     });
 
+    // The targets themselves are reported as entered; only the advice is withheld.
     expect(result.reduce((sum, hint) => sum + hint.targetValue, 0)).toBe(120000);
-    expect(result.reduce((sum, hint) => sum + hint.deltaValue, 0)).toBe(20000);
-    expect(result.map((hint) => hint.action)).toEqual(['buy', 'buy', 'buy', 'hold', 'hold']);
+    expect(result.map((hint) => hint.targetPercent)).toEqual([50, 10, 40, 10, 10]);
+    expect(result.every((hint) => hint.action === 'hold')).toBe(true);
   });
 
-  // Bug: Rebalance Suggests A Sell At Zero Net Worth — asserts current behaviour
-  it('keeps every figure finite when net worth is zero', () => {
+  it('resumes advising once the targets come back to one hundred', () => {
+    const result = computeRebalance({
+      allocation: [
+        { assetClass: 'stocks', value: 40000, weight: 40 },
+        { assetClass: 'crypto', value: 5000, weight: 5 },
+        { assetClass: 'property', value: 35000, weight: 35 },
+        { assetClass: 'cash', value: 10000, weight: 10 },
+        { assetClass: 'savings', value: 10000, weight: 10 },
+      ],
+      targets: targets({ stocks: 50, property: 25 }),
+      netWorth: 100000,
+    });
+
+    expect(result.map((hint) => hint.action)).toEqual(['buy', 'hold', 'sell', 'hold', 'hold']);
+  });
+
+  it('holds every class when net worth is zero, rather than advising a sell of nothing', () => {
     const result = computeRebalance({
       allocation: [
         { assetClass: 'stocks', value: 0, weight: 0 },
@@ -162,7 +177,7 @@ describe('computeRebalance', () => {
     ).toBe(true);
     expect(result.map((hint) => hint.targetValue)).toEqual([0, 0]);
     expect(result.map((hint) => hint.deltaValue)).toEqual([0, 0]);
-    expect(result.map((hint) => hint.action)).toEqual(['sell', 'sell']);
+    expect(result.map((hint) => hint.action)).toEqual(['hold', 'hold']);
   });
 
   it('treats a missing target as zero and emits nothing for a target with no allocation', () => {
