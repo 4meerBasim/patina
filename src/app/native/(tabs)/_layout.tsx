@@ -11,6 +11,7 @@ export default function NativeTabsLayout() {
       <Tabs.Screen name="index" />
       <Tabs.Screen name="portfolio" />
       <Tabs.Screen name="goals" />
+      <Tabs.Screen name="notes" />
     </Tabs>
   );
 }

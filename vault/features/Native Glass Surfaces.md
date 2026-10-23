@@ -10,5 +10,5 @@ The grouped-list vocabulary built on it: `src/components/native/grouped-list.tsx
 
 ## Related
 - Page: [[Native Home]], [[Native Portfolio]], [[Native Goals]], [[Native Holding Detail]], [[Native Dividends]], [[Native Goal Detail]], [[Native Liabilities]]
-- Features: [[Native Glass Tab Bar]], [[Newsreader Hero on Native Home]]
+- Features: [[Native Glass Tab Bar]], [[Newsreader Hero on Native Home]], [[Native Notes Screen]]
 - Bugs: none known
