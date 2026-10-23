@@ -12,6 +12,6 @@ Summary: records buys, sells, dividends and deposits as dated transactions with 
 A sell can be seeded or imported but not entered: both add sheets write `type: 'buy'` only, so the sell path has no UI yet.
 
 ## Related
-- Feature: [[Domain Data Model]], [[Local SQLite Persistence]], [[Returns Engine]], [[Money and Numeral Formatting]], [[Demo Seed Data]], [[Dividend Tracking and Calendar]], [[Period Recap]]
+- Feature: [[Domain Data Model]], [[Local SQLite Persistence]], [[Returns Engine]], [[Money and Numeral Formatting]], [[Demo Seed Data]], [[Dividend Tracking and Calendar]], [[Period Recap]], [[Dynamic Type Caps]]
 - Bugs: [[Oversell Drops The Unmatched Proceeds]]
 - Page: [[Editorial Holding Detail]], [[Native Holding Detail]], [[Editorial Activity]], [[Editorial Add Holding]], [[Native Add Holding]]

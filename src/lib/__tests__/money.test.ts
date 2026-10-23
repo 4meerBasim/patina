@@ -1,6 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 
 import {
+  formatCompactCurrency,
+  formatCompactNumber,
   formatCurrency,
   formatNumber,
   formatPercent,
@@ -419,5 +421,50 @@ describe('floating-point accumulation', () => {
     for (let i = 0; i < 11; i += 1) sum += 0.005;
     expect(formatCurrency(sum, 'USD', { minimumFractionDigits: 2 })).toBe('$0.06');
     expect(formatCurrency(0.055, 'USD', { minimumFractionDigits: 2 })).toBe('$0.06');
+  });
+});
+
+describe('formatCompactCurrency', () => {
+  it('leaves a figure below a million alone', () => {
+    expect(formatCompactCurrency(999999, 'USD')).toBe('$999,999');
+    expect(formatCompactCurrency(1234.5, 'USD')).toBe('$1,234.50');
+  });
+
+  it('abbreviates millions, billions and trillions to two decimals', () => {
+    expect(formatCompactCurrency(1280000, 'USD')).toBe('$1.28M');
+    expect(formatCompactCurrency(1280000000, 'USD')).toBe('$1.28B');
+    expect(formatCompactCurrency(1280000000000, 'USD')).toBe('$1.28T');
+  });
+
+  it('keeps the sign outside the symbol', () => {
+    expect(formatCompactCurrency(-1280000, 'USD')).toBe(`${MINUS}$1.28M`);
+  });
+
+  it('names the unit in arabic and keeps it inside the symbol', () => {
+    expect(
+      formatCompactCurrency(1280000, 'USD', { locale: 'ar', numeralSystem: 'arabic' }),
+    ).toBe(`١${DECIMAL}٢٨ مليون $`);
+  });
+
+  it('puts the unit next to the digits in the en locale', () => {
+    expect(formatCompactCurrency(2500000, 'EUR')).toBe('€2.50M');
+    expect(formatCompactCurrency(2500000, 'IQD', { locale: 'ar' })).toBe('2.50 مليون IQD');
+  });
+});
+
+describe('formatCompactNumber', () => {
+  it('leaves a figure below a million alone', () => {
+    expect(formatCompactNumber(999999)).toBe('999,999');
+  });
+
+  it('abbreviates with the latin letter by default and the arabic word in the ar locale', () => {
+    expect(formatCompactNumber(1280000)).toBe('1.28M');
+    expect(formatCompactNumber(1280000, { locale: 'ar', numeralSystem: 'arabic' })).toBe(
+      `١${DECIMAL}٢٨ مليون`,
+    );
+  });
+
+  it('keeps the U+2212 sign for a negative', () => {
+    expect(formatCompactNumber(-2500000)).toBe(`${MINUS}2.50M`);
   });
 });

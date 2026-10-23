@@ -7,10 +7,17 @@ import { Glass } from '@/components/native/glass';
 import { DriftingFigure } from '@/components/drifting-figure';
 import { GroupedCard, KeyValueRow, RowSeparator } from '@/components/native/grouped-list';
 import { SegmentedControl } from '@/components/native/segmented-control';
-import { AssetClassColors, Colors, Fonts } from '@/constants/theme';
+import { AssetClassColors, Colors, Fonts, TypeCap } from '@/constants/theme';
 import type { AssetClass } from '@/data/types';
-import { formatCurrency, formatNumber, formatPercent, formatSignedCurrency } from '@/lib/money';
+import {
+  formatCompactCurrency,
+  formatCurrency,
+  formatNumber,
+  formatPercent,
+  formatSignedCurrency,
+} from '@/lib/money';
 import { useFigureMask } from '@/lib/privacy-blur';
+import { useCompactHero } from '@/lib/type-scale';
 import {
   useAllocation,
   useNetWorth,
@@ -120,7 +127,11 @@ export default function NativeHome() {
   const recapGain = recap.netWorthChange >= 0;
   const marketGain = recap.market >= 0;
 
-  const hero = formatCurrency(netWorth.total, settings.baseCurrency);
+  const compactHero = useCompactHero();
+  const hero = (compactHero ? formatCompactCurrency : formatCurrency)(
+    netWorth.total,
+    settings.baseCurrency,
+  );
   const figures = useFigureMask();
 
   const allocation = useMemo(
@@ -165,13 +176,16 @@ export default function NativeHome() {
             onPress={figures.onPress}
             onLongPress={figures.onLongPress}>
             {figures.hidden ? (
-              <Text style={styles.heroValue}>{figures.mask(hero)}</Text>
+              <Text style={styles.heroValue} maxFontSizeMultiplier={TypeCap.hero}>
+                {figures.mask(hero)}
+              </Text>
             ) : (
               <DriftingFigure
                 value={hero}
                 amount={netWorth.total}
                 style={styles.heroValue}
                 tailStyle={styles.heroCents}
+                maxFontSizeMultiplier={TypeCap.hero}
                 accessibilityLabel={`Total ${hero}`}
               />
             )}

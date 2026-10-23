@@ -10,6 +10,7 @@ import type { AssetClass } from '@/data/types';
 import { parseAmount } from '@/lib/amount';
 import { formatCurrency, formatNumber, formatPercent, formatSignedCurrency } from '@/lib/money';
 import { moneyWeightedReturn } from '@/lib/returns';
+import { useIsLargeType } from '@/lib/type-scale';
 import {
   useAccounts,
   useDataActions,
@@ -82,6 +83,7 @@ export default function HoldingScreen() {
   const netWorth = useNetWorth();
   const transactions = useTransactions();
   const feeAnalysis = useFeeAnalysis();
+  const isLargeType = useIsLargeType();
   const yieldOnCost = useYieldOnCost();
   const accounts = useAccounts();
   const valuations = useDataStore((state) => state.valuations);
@@ -459,22 +461,33 @@ export default function HoldingScreen() {
             <View style={styles.sectionDivider}>
               <Caption>{isManual ? 'Position' : 'Provenance'}</Caption>
             </View>
-            <View style={styles.defList} accessible accessibilityLabel={rowsLabel}>
-              <View style={styles.defLabels}>
+            {isLargeType ? (
+              <View style={styles.defStack} accessible accessibilityLabel={rowsLabel}>
                 {rows.map((row) => (
-                  <Text key={row.label} style={styles.defLabel}>
-                    {row.label}
-                  </Text>
+                  <View key={row.label} style={styles.defPair}>
+                    <Text style={styles.defLabel}>{row.label}</Text>
+                    <Text style={[styles.defValue, { color: row.valueColor }]}>{row.value}</Text>
+                  </View>
                 ))}
               </View>
-              <View style={styles.defValues}>
-                {rows.map((row) => (
-                  <Text key={row.label} style={[styles.defValue, { color: row.valueColor }]}>
-                    {row.value}
-                  </Text>
-                ))}
+            ) : (
+              <View style={styles.defList} accessible accessibilityLabel={rowsLabel}>
+                <View style={styles.defLabels}>
+                  {rows.map((row) => (
+                    <Text key={row.label} style={styles.defLabel}>
+                      {row.label}
+                    </Text>
+                  ))}
+                </View>
+                <View style={styles.defValues}>
+                  {rows.map((row) => (
+                    <Text key={row.label} style={[styles.defValue, { color: row.valueColor }]}>
+                      {row.value}
+                    </Text>
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
           </View>
         ) : null}
       </ScrollView>
@@ -658,6 +671,13 @@ const styles = StyleSheet.create({
   defList: {
     flexDirection: 'row',
     marginTop: 14,
+  },
+  defStack: {
+    marginTop: 14,
+    gap: 12,
+  },
+  defPair: {
+    gap: 2,
   },
   defLabels: {
     flex: 1,

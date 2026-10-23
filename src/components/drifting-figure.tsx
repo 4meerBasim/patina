@@ -50,10 +50,12 @@ const DriftCell = memo(function DriftCell({
   glyph,
   direction,
   style,
+  maxFontSizeMultiplier,
 }: {
   glyph: string;
   direction: DriftDirection;
   style?: StyleProp<TextStyle>;
+  maxFontSizeMultiplier?: number;
 }) {
   const reducedMotion = useReducedMotion();
   const duration = reducedMotion ? 0 : Motion.drift;
@@ -62,7 +64,10 @@ const DriftCell = memo(function DriftCell({
 
   return (
     <View style={styles.cell}>
-      <Text style={[style, styles.spacer]} importantForAccessibility="no">
+      <Text
+        style={[style, styles.spacer]}
+        maxFontSizeMultiplier={maxFontSizeMultiplier}
+        importantForAccessibility="no">
         {glyph}
       </Text>
       <Animated.Text
@@ -70,6 +75,7 @@ const DriftCell = memo(function DriftCell({
         entering={enterFrom(rise, duration)}
         exiting={exitTo(-rise, duration)}
         style={[style, styles.glyph]}
+        maxFontSizeMultiplier={maxFontSizeMultiplier}
         importantForAccessibility="no">
         {glyph}
       </Animated.Text>
@@ -85,6 +91,7 @@ export type DriftingFigureProps = {
   direction?: DriftDirection;
   style?: StyleProp<TextStyle>;
   tailStyle?: StyleProp<TextStyle>;
+  maxFontSizeMultiplier?: number;
   accessibilityLabel?: string;
 };
 
@@ -97,6 +104,7 @@ export const DriftingFigure = memo(function DriftingFigure({
   direction = 'none',
   style,
   tailStyle,
+  maxFontSizeMultiplier,
   accessibilityLabel,
 }: DriftingFigureProps) {
   const previous = useRef(amount);
@@ -120,6 +128,7 @@ export const DriftingFigure = memo(function DriftingFigure({
           glyph={glyph}
           direction={moving}
           style={tailFrom >= 0 && index >= tailFrom ? [style, tailStyle] : style}
+          maxFontSizeMultiplier={maxFontSizeMultiplier}
         />
       ))}
     </View>
