@@ -26,6 +26,6 @@ Worth checking the Arabic strings for the same shape when [[Arabic Holding and A
 Found by `src/lib/__tests__/insights.test.ts`, which asserts the current wording so the suite stays green. Not fixed in the harness PR, which carries no behaviour changes.
 
 ## Related
-- Feature: [[Insight Rules Engine]]
+- Feature: [[Insight Rules Engine]], [[Goals With Linked Holdings]]
 - Page: [[Editorial Notes]]
 - Enhancement: [[Native Notes Screen]]

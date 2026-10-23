@@ -8,3 +8,4 @@ Mobile Screens "Try next" on turn 2: "make 2a interactive". Today only the avata
 
 ## Related
 - Page: [[Native Home]]
+- Bugs: [[Four Native Screens Have No Route In]]

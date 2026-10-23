@@ -30,6 +30,6 @@ So this is latent, with a named trigger: a user holding nothing while targets re
 Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR.
 
 ## Related
-- Feature: [[Allocation Class Selection]], [[Demo Seed Data]], [[App State Store]], [[Local SQLite Persistence]]
+- Feature: [[Allocation Class Selection]], [[Demo Seed Data]], [[App State Store]], [[Local SQLite Persistence]], [[Target Allocation and Rebalance Hints]]
 - Bug: [[Rebalance Does Not Normalise Targets Over 100]]
 - Page: [[Editorial Allocation]]

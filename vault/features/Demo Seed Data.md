@@ -8,5 +8,5 @@ Summary: An idempotent demo dataset that reproduces the mockups' figures exactly
 
 ## Related
 - Page: [[Editorial Home]], [[Native Home]], [[Editorial Portfolio]], [[Native Portfolio]], [[Editorial Goals]], [[Native Goals]], [[Editorial Activity]]
-- Features: [[Local SQLite Persistence]]
+- Features: [[Local SQLite Persistence]], [[Transactions and Lots]]
 - Bugs: [[Contradictory Lisbon Flat Valuation]], [[Dividend Calendar Sums Foreign Currency Without FX]], [[Oversell Drops The Unmatched Proceeds]], [[Rebalance Suggests A Sell At Zero Net Worth]]

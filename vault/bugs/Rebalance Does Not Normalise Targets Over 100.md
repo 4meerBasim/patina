@@ -32,7 +32,7 @@ The fix has a product decision inside it: normalise the targets pro rata, cap th
 Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR.
 
 ## Related
-- Feature: [[Allocation Class Selection]], [[Persisted Settings]], [[App State Store]]
+- Feature: [[Allocation Class Selection]], [[Persisted Settings]], [[App State Store]], [[Target Allocation and Rebalance Hints]]
 - Bug: [[Rebalance Suggests A Sell At Zero Net Worth]]
 - Enhancement: [[Allocation Ring Drill-Down]]
 - Page: [[Editorial Allocation]]

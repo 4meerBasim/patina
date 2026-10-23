@@ -8,6 +8,6 @@ Summary: Static USD-based FX rates for the six supported currencies, used to con
 
 ## Related
 - Page: [[Editorial Settings]], [[Native Settings]], [[Editorial Home]]
-- Features: [[Money and Numeral Formatting]]
+- Features: [[Money and Numeral Formatting]], [[Dividend Tracking and Calendar]]
 - Bugs: [[Dividend Calendar Sums Foreign Currency Without FX]]
 - Enhancements: [[Network FX Rates]]

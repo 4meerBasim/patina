@@ -8,6 +8,6 @@ Summary: An on-device SQLite database that stores every domain entity and surviv
 
 ## Related
 - Page: [[Editorial Home]], [[Editorial Portfolio]], [[Editorial Holding Detail]], [[Editorial Add Holding]], [[Editorial Allocation]], [[Editorial Goals]], [[Editorial Notes]], [[Editorial Activity]], [[Editorial Performance]], [[Native Home]], [[Native Portfolio]], [[Native Holding Detail]], [[Native Add Holding]], [[Native Goals]]
-- Features: [[App State Store]], [[Demo Seed Data]], [[Domain Data Model]], [[Full Export And Delete]], [[Persisted Settings]]
+- Features: [[App State Store]], [[Demo Seed Data]], [[Domain Data Model]], [[Full Export And Delete]], [[Persisted Settings]], [[Liabilities]], [[Transactions and Lots]]
 - Bugs: [[Oversell Drops The Unmatched Proceeds]], [[Rebalance Suggests A Sell At Zero Net Worth]]
 - Enhancements: [[Extract The Backup Codec For Testing]]

@@ -9,5 +9,6 @@ Summary: Tappable period and grouping selectors: underlined text tabs in the Edi
 Selection is UI state only; the charts and lists do not change with it.
 
 ## Related
-- Page: [[Editorial Home]], [[Editorial Holding Detail]], [[Native Home]], [[Native Portfolio]], [[Native Holding Detail]], [[Native Add Holding]]
+- Page: [[Editorial Home]], [[Editorial Holding Detail]], [[Native Home]], [[Native Portfolio]], [[Native Holding Detail]], [[Native Add Holding]], [[Editorial Dividends]], [[Native Dividends]]
 - Bugs: none known
+- Features: [[Period Recap]]
