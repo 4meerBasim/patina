@@ -144,9 +144,8 @@ describe('formatNumber', () => {
     expect(formatNumber(0.004)).toBe('0');
   });
 
-  // Bug: Negative Sub-Cent Renders As Minus Zero — asserts current behaviour
-  it('renders a negative value below half a cent as a signed zero', () => {
-    expect(formatNumber(-0.004)).toBe(`${MINUS}0`);
+  it('renders a negative value below half a cent as a bare zero', () => {
+    expect(formatNumber(-0.004)).toBe('0');
   });
 
   it('keeps a small non-zero value visible when the fraction digits allow it', () => {
@@ -175,7 +174,7 @@ describe('formatCurrency', () => {
   });
 
   it('puts the U+2212 sign before the symbol for a negative', () => {
-    expect(formatCurrency(-1234.5, 'USD')).toBe(`${MINUS}$1,234.5`);
+    expect(formatCurrency(-1234.5, 'USD')).toBe(`${MINUS}$1,234.50`);
   });
 
   it('uses U+2212 rather than an ascii hyphen-minus for the sign', () => {
@@ -185,9 +184,9 @@ describe('formatCurrency', () => {
     expect(formatted).not.toContain('-');
   });
 
-  // Bug: Currency Drops The Trailing Cent Zero — asserts current behaviour
-  it('leaves a single-decimal value with one fraction digit instead of padding to cents', () => {
-    expect(formatCurrency(1234.5, 'USD')).toBe('$1,234.5');
+  it('pads a single-decimal value to cents', () => {
+    expect(formatCurrency(1234.5, 'USD')).toBe('$1,234.50');
+    expect(formatCurrency(29544.1, 'USD')).toBe('$29,544.10');
   });
 
   it('pads to cents when minimumFractionDigits is passed explicitly', () => {
@@ -215,19 +214,17 @@ describe('formatCurrency', () => {
     expect(formatCurrency(2.675, 'USD')).toBe('$2.68');
   });
 
-  // Bug: Half-Cent Value Loses Its Cents In Currency Output — asserts current behaviour
-  it('renders 1.005 as a bare dollar even though formatNumber rounds it to 1.01', () => {
+  it('rounds 1.005 to its cents, agreeing with formatNumber', () => {
     expect(formatNumber(1.005)).toBe('1.01');
-    expect(formatCurrency(1.005, 'USD')).toBe('$1');
+    expect(formatCurrency(1.005, 'USD')).toBe('$1.01');
   });
 
   it('rounds a positive value below half a cent down to a bare zero', () => {
     expect(formatCurrency(0.004, 'USD')).toBe('$0');
   });
 
-  // Bug: Negative Sub-Cent Renders As Minus Zero — asserts current behaviour
-  it('renders a negative value below half a cent as a signed zero', () => {
-    expect(formatCurrency(-0.004, 'USD')).toBe(`${MINUS}$0`);
+  it('renders a negative value below half a cent as an unsigned zero', () => {
+    expect(formatCurrency(-0.004, 'USD')).toBe('$0');
   });
 
   it('keeps a small non-zero value visible when the fraction digits allow it', () => {
@@ -241,25 +238,25 @@ describe('formatCurrency', () => {
   });
 
   it('groups a large value below the exponential threshold', () => {
-    expect(formatCurrency(1000000000000.5, 'USD')).toBe('$1,000,000,000,000.5');
+    expect(formatCurrency(1000000000000.5, 'USD')).toBe('$1,000,000,000,000.50');
   });
 
   it('puts every currency symbol before the number in the en locale', () => {
-    expect(formatCurrency(1234.5, 'USD')).toBe('$1,234.5');
-    expect(formatCurrency(1234.5, 'EUR')).toBe('€1,234.5');
-    expect(formatCurrency(1234.5, 'GBP')).toBe('£1,234.5');
-    expect(formatCurrency(1234.5, 'SAR')).toBe('SR1,234.5');
-    expect(formatCurrency(1234.5, 'AED')).toBe('AED1,234.5');
-    expect(formatCurrency(1234.5, 'IQD')).toBe('IQD1,234.5');
+    expect(formatCurrency(1234.5, 'USD')).toBe('$1,234.50');
+    expect(formatCurrency(1234.5, 'EUR')).toBe('€1,234.50');
+    expect(formatCurrency(1234.5, 'GBP')).toBe('£1,234.50');
+    expect(formatCurrency(1234.5, 'SAR')).toBe('SR1,234.50');
+    expect(formatCurrency(1234.5, 'AED')).toBe('AED1,234.50');
+    expect(formatCurrency(1234.5, 'IQD')).toBe('IQD1,234.50');
   });
 
   it('puts every currency symbol after the number in the ar locale', () => {
-    expect(formatCurrency(1234.5, 'USD', { locale: 'ar' })).toBe('1,234.5 $');
-    expect(formatCurrency(1234.5, 'EUR', { locale: 'ar' })).toBe('1,234.5 €');
-    expect(formatCurrency(1234.5, 'GBP', { locale: 'ar' })).toBe('1,234.5 £');
-    expect(formatCurrency(1234.5, 'SAR', { locale: 'ar' })).toBe('1,234.5 SR');
-    expect(formatCurrency(1234.5, 'AED', { locale: 'ar' })).toBe('1,234.5 AED');
-    expect(formatCurrency(1234.5, 'IQD', { locale: 'ar' })).toBe('1,234.5 IQD');
+    expect(formatCurrency(1234.5, 'USD', { locale: 'ar' })).toBe('1,234.50 $');
+    expect(formatCurrency(1234.5, 'EUR', { locale: 'ar' })).toBe('1,234.50 €');
+    expect(formatCurrency(1234.5, 'GBP', { locale: 'ar' })).toBe('1,234.50 £');
+    expect(formatCurrency(1234.5, 'SAR', { locale: 'ar' })).toBe('1,234.50 SR');
+    expect(formatCurrency(1234.5, 'AED', { locale: 'ar' })).toBe('1,234.50 AED');
+    expect(formatCurrency(1234.5, 'IQD', { locale: 'ar' })).toBe('1,234.50 IQD');
   });
 
   it('keeps the sign ahead of the number when the ar locale trails the symbol', () => {
@@ -268,7 +265,7 @@ describe('formatCurrency', () => {
 
   it('combines the ar locale with arabic numerals', () => {
     expect(formatCurrency(1234.5, 'IQD', { locale: 'ar', numeralSystem: 'arabic' })).toBe(
-      `١${GROUP}٢٣٤${DECIMAL}٥ IQD`,
+      `١${GROUP}٢٣٤${DECIMAL}٥٠ IQD`,
     );
     expect(formatCurrency(-99, 'EUR', { locale: 'ar', numeralSystem: 'arabic' })).toBe(
       `${MINUS}٩٩ €`,
@@ -283,12 +280,12 @@ describe('formatCurrency', () => {
 
 describe('formatSignedCurrency', () => {
   it('prefixes a positive value with an ascii plus', () => {
-    expect(formatSignedCurrency(1234.5, 'USD')).toBe('+$1,234.5');
+    expect(formatSignedCurrency(1234.5, 'USD')).toBe('+$1,234.50');
     expect(formatSignedCurrency(1234, 'USD')).toBe('+$1,234');
   });
 
   it('prefixes a negative value with a single U+2212 ahead of the symbol', () => {
-    expect(formatSignedCurrency(-1234.5, 'USD')).toBe(`${MINUS}$1,234.5`);
+    expect(formatSignedCurrency(-1234.5, 'USD')).toBe(`${MINUS}$1,234.50`);
     expect(formatSignedCurrency(-5, 'USD')).toBe(`${MINUS}$5`);
   });
 
@@ -311,15 +308,14 @@ describe('formatSignedCurrency', () => {
     expect(formatSignedCurrency(0.004, 'USD')).toBe('+$0');
   });
 
-  // Bug: Negative Sub-Cent Renders As Minus Zero — asserts current behaviour
-  it('renders a negative sub-cent value as a minus zero', () => {
-    expect(formatSignedCurrency(-0.004, 'USD')).toBe(`${MINUS}$0`);
+  it('renders a negative sub-cent value as a plus zero, like its positive twin', () => {
+    expect(formatSignedCurrency(-0.004, 'USD')).toBe('+$0');
   });
 
   it('keeps the sign ahead of the number in the ar locale', () => {
     expect(formatSignedCurrency(-5, 'SAR', { locale: 'ar' })).toBe(`${MINUS}5 SR`);
     expect(formatSignedCurrency(-1234.5, 'EUR', { locale: 'ar', numeralSystem: 'arabic' })).toBe(
-      `${MINUS}١${GROUP}٢٣٤${DECIMAL}٥ €`,
+      `${MINUS}١${GROUP}٢٣٤${DECIMAL}٥٠ €`,
     );
   });
 });
@@ -367,9 +363,9 @@ describe('formatPercent', () => {
     expect(formatPercent(1234.5678)).toBe('1,234.57%');
   });
 
-  // Bug: Percent Ignores maximumFractionDigits Unless Minimum Is Also Passed — asserts current behaviour
-  it('keeps two fraction digits when only maximumFractionDigits is lowered', () => {
-    expect(formatPercent(5, { maximumFractionDigits: 0 })).toBe('5.00%');
+  it('drops the fraction when only maximumFractionDigits is lowered', () => {
+    expect(formatPercent(5, { maximumFractionDigits: 0 })).toBe('5%');
+    expect(formatPercent(7.5, { maximumFractionDigits: 1 })).toBe('7.5%');
   });
 
   it('drops the fraction when both fraction-digit options are lowered', () => {
@@ -377,9 +373,8 @@ describe('formatPercent', () => {
     expect(formatPercent(7.5, { minimumFractionDigits: 1, maximumFractionDigits: 1 })).toBe('7.5%');
   });
 
-  // Bug: Negative Sub-Cent Renders As Minus Zero — asserts current behaviour
-  it('renders a negative value below the displayed precision as a minus zero', () => {
-    expect(formatPercent(-0.001, { signed: true })).toBe(`${MINUS}0.00%`);
+  it('renders a negative value below the displayed precision as a plus zero', () => {
+    expect(formatPercent(-0.001, { signed: true })).toBe('+0.00%');
   });
 });
 
@@ -419,11 +414,10 @@ describe('floating-point accumulation', () => {
     expect(formatCurrency(total, 'USD', { minimumFractionDigits: 2 })).toBe('$0.30');
   });
 
-  // Bug: Sub-Cent Accumulation Lands A Cent Low — asserts current behaviour
-  it('lands a cent below the exact decimal total when the added step is a half cent', () => {
+  it('matches the exact decimal total when the added step is a half cent', () => {
     let sum = 0;
     for (let i = 0; i < 11; i += 1) sum += 0.005;
-    expect(formatCurrency(sum, 'USD', { minimumFractionDigits: 2 })).toBe('$0.05');
+    expect(formatCurrency(sum, 'USD', { minimumFractionDigits: 2 })).toBe('$0.06');
     expect(formatCurrency(0.055, 'USD', { minimumFractionDigits: 2 })).toBe('$0.06');
   });
 });

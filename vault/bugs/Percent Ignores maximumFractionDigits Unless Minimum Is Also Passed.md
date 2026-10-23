@@ -1,6 +1,6 @@
 # Percent Ignores maximumFractionDigits Unless Minimum Is Also Passed
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/money.ts:94`
 Summary: `formatPercent` defaults the minimum fraction digits to 2, and `formatNumber` then clamps the maximum up to the minimum, so lowering only `maximumFractionDigits` has no effect.
 
@@ -26,7 +26,9 @@ Actual `5.00%`. Expected `5%`. Frozen at `src/lib/__tests__/money.test.ts:370`. 
 
 Latent. Every `formatPercent` caller in the app that lowers the precision passes both options — `src/app/native/(tabs)/index.tsx:127` and `src/app/native/(tabs)/goals.tsx:125` pass 0 and 0, the holding and performance screens pass 1 and 1, the yield rows pass 2 and 2. None currently pass `maximumFractionDigits` alone, so nothing on screen is wrong today. The named trigger is the next caller who passes only the ceiling, reasonably expecting it to apply, and gets two decimals with no error and no warning.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR — and it has to decide whether a lowered ceiling should pull the floor down with it, or whether the clamp should simply be dropped.
+## Fix
+
+Fixed on `fix/money-formatters`. `formatPercent` defaults its floor to `Math.min(2, max)` rather than a flat 2, so a lowered ceiling pulls the floor down with it: `formatPercent(5, { maximumFractionDigits: 0 })` is `5%` and `formatPercent(7.5, { maximumFractionDigits: 1 })` is `7.5%`. The default with no options is unchanged at two digits. The `Math.max` clamp in `formatNumber` stays — it is what keeps `Intl` from a RangeError when a caller deliberately raises the floor above the ceiling.
 
 ## Related
 - Feature: [[Money and Numeral Formatting]]

@@ -1,6 +1,6 @@
 # Currency Drops The Trailing Cent Zero
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/money.ts:70`
 Summary: `formatCurrency` raises the maximum fraction digits to 2 for a non-whole value but leaves the minimum at 0, so an amount with one significant decimal renders with one decimal instead of two.
 
@@ -22,7 +22,9 @@ Live, and the native style is where it shows. Twenty-four of the twenty-six `for
 
 The fix is to pass the chosen digit count as both floor and ceiling when the caller supplied neither, which is what `fractionDigitsFor` was evidently meant to express.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR.
+## Fix
+
+Fixed on `fix/money-formatters`. `currencyFractionDigits` now probes what `Intl` will actually render: when the caller supplies no fraction digits, the magnitude is formatted once with a ceiling of 2, and if that probe carries a decimal separator both the floor and the ceiling are set to 2. `formatCurrency(1234.5, 'USD')` is `$1,234.50` and `formatCurrency(29544.1, 'USD')` is `$29,544.10`; a whole value still renders bare. The twenty-four native call sites that pass no options now read like the editorial ones.
 
 ## Related
 - Bug: [[Half-Cent Value Loses Its Cents In Currency Output]], [[Negative Sub-Cent Renders As Minus Zero]], [[Percent Ignores maximumFractionDigits Unless Minimum Is Also Passed]], [[Sub-Cent Accumulation Lands A Cent Low]]

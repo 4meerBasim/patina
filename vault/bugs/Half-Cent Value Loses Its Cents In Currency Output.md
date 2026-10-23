@@ -1,6 +1,6 @@
 # Half-Cent Value Loses Its Cents In Currency Output
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/money.ts:57`
 Summary: `fractionDigitsFor` decides how many decimals to show using `Math.round(value * 100)`, which disagrees with the rounding `Intl` then applies, so a value that rounds up to a cent can be shown with no cents at all.
 
@@ -22,7 +22,9 @@ So the practical exposure is a rare one-cent display error, not a systematic one
 
 Twenty-four of the twenty-six `formatCurrency` call sites in `src/app/native/` reach this path, since they pass no fraction-digit options; see [[Currency Drops The Trailing Cent Zero]] for the call sites. No write was traced through this function — it is display only.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR.
+## Fix
+
+Fixed on `fix/money-formatters`. `fractionDigitsFor` is gone, and with it the hand-rolled `Math.round(value * 100)`. `currencyFractionDigits` decides the digit count from the string `formatNumber` produces, so the count and the digits now come out of the same rounding. `formatCurrency(1.005, 'USD')` is `$1.01`, agreeing with `formatNumber(1.005)`.
 
 ## Related
 - Bug: [[Currency Drops The Trailing Cent Zero]], [[Negative Sub-Cent Renders As Minus Zero]], [[Percent Ignores maximumFractionDigits Unless Minimum Is Also Passed]], [[Sub-Cent Accumulation Lands A Cent Low]]

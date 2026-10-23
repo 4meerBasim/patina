@@ -1,6 +1,6 @@
 # parseAmount Cannot Read The U+2212 Sign money.ts Writes
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/amount.ts:8-12` against `src/lib/money.ts:8`
 Summary: the app formats negatives with a typographic minus its own parser rejects, so pasting a displayed figure back into a field silently fails.
 
@@ -31,7 +31,9 @@ So the real consequence is a **dead-end paste**: a user who copies a displayed n
 
 Latent rather than live, and worth fixing because the asymmetry will bite the moment any screen does seed an input from formatted output. The fix is one entry in the replace chain, mapping U+2212 to `-` beside the existing Arabic separator handling.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note.
+## Fix
+
+Fixed on `fix/money-formatters` with one more entry in the replace chain, mapping U+2212 to an ascii hyphen beside the existing Arabic separator handling. `parseAmount('−5')` is `-5` and `parseAmount('−1,234.56')` is `-1234.56`, so a figure the app displays can be pasted back into a field. The formatter counterpart is [[formatDollars Signs With Ascii Hyphen While money.ts Uses U+2212]], fixed in the same change, which means both modules now write the one sign the parser reads.
 
 ## Related
 - Bug: [[formatDollars Puts The Sign After The Dollar Symbol]], [[formatDollars Signs With Ascii Hyphen While money.ts Uses U+2212]], [[parseAmount Returns Negative Zero]]

@@ -92,14 +92,13 @@ describe('parseAmount', () => {
     expect(parseAmount('$-1,234.56')).toBe(-1234.56);
   });
 
-  // Bug: parseAmount Returns Negative Zero — asserts current behaviour
-  it('returns negative zero for a negated zero', () => {
-    expect(parseAmount('-0')).toBe(-0);
+  it('collapses a negated zero to positive zero', () => {
+    expect(parseAmount('-0')).toBe(0);
   });
 
-  // Bug: parseAmount Cannot Read The U+2212 Sign money.ts Writes — asserts current behaviour
-  it('returns null for a negative written with the U+2212 minus sign', () => {
-    expect(parseAmount(`${MINUS}5`)).toBeNull();
+  it('parses a negative written with the U+2212 minus sign money.ts writes', () => {
+    expect(parseAmount(`${MINUS}5`)).toBe(-5);
+    expect(parseAmount(`${MINUS}1,234.56`)).toBe(-1234.56);
   });
 
   it('returns null for the literal strings Infinity and NaN', () => {
@@ -156,34 +155,33 @@ describe('formatDollars', () => {
 
   it('rounds a sub-cent value down to a whole dollar', () => {
     expect(formatDollars(0.004)).toBe('$0');
-    expect(formatDollars(1.005)).toBe('$1');
   });
 
-  // Bug: formatDollars Puts The Sign After The Dollar Symbol — asserts current behaviour
-  it('puts the sign between the dollar symbol and the digits for a negative', () => {
-    expect(formatDollars(-5)).toBe('$-5');
-    expect(formatDollars(-1234.56)).toBe('$-1,234.56');
-    expect(formatDollars(-1234.5)).toBe('$-1,234.50');
-    expect(formatDollars(-0.5)).toBe('$-0.50');
+  it('rounds a half-cent value up to its cents', () => {
+    expect(formatDollars(1.005)).toBe('$1.01');
   });
 
-  // Bug: formatDollars Signs With Ascii Hyphen While money.ts Uses U+2212 — asserts current behaviour
-  it('signs a negative with an ascii hyphen-minus rather than U+2212', () => {
+  it('puts the sign ahead of the dollar symbol for a negative', () => {
+    expect(formatDollars(-5)).toBe(`${MINUS}$5`);
+    expect(formatDollars(-1234.56)).toBe(`${MINUS}$1,234.56`);
+    expect(formatDollars(-1234.5)).toBe(`${MINUS}$1,234.50`);
+    expect(formatDollars(-0.5)).toBe(`${MINUS}$0.50`);
+  });
+
+  it('signs a negative with the same U+2212 money.ts writes', () => {
     const formatted = formatDollars(-5);
-    expect(formatted).toContain('-');
-    expect(formatted).not.toContain(MINUS);
-    expect(formatted.codePointAt(1)).toBe(0x2d);
+    expect(formatted).not.toContain('-');
+    expect(formatted.codePointAt(0)).toBe(0x2212);
+    expect(formatted.codePointAt(1)).toBe(0x24);
   });
 
-  // Bug: formatDollars Renders Negative Zero As $-0 — asserts current behaviour
-  it('renders negative zero and a negative sub-cent value as a signed zero', () => {
-    expect(formatDollars(-0)).toBe('$-0');
-    expect(formatDollars(-0.004)).toBe('$-0');
+  it('renders negative zero and a negative sub-cent value as an unsigned zero', () => {
+    expect(formatDollars(-0)).toBe('$0');
+    expect(formatDollars(-0.004)).toBe('$0');
   });
 
-  // Bug: formatDollars Loses Precision On Very Large Values — asserts current behaviour
-  it('writes a very large value without exponential notation but off by a rounding step', () => {
-    expect(formatDollars(1e21)).toBe('$999,999,999,999,999,900,000');
+  it('writes a very large value in full without exponential notation or a rounding step', () => {
+    expect(formatDollars(1e21)).toBe('$1,000,000,000,000,000,000,000');
     expect(formatDollars(1e21)).not.toContain('e');
   });
 
@@ -219,11 +217,10 @@ describe('floating-point accumulation', () => {
     expect(formatDollars(total)).toBe('$38');
   });
 
-  // Bug: Sub-Cent Accumulation Lands A Cent Low — asserts current behaviour
-  it('lands a cent below the exact decimal total when the added step is a half cent', () => {
+  it('matches the exact decimal total when the added step is a half cent', () => {
     let sum = 0;
     for (let i = 0; i < 11; i += 1) sum += 0.005;
-    expect(formatDollars(sum)).toBe('$0.05');
+    expect(formatDollars(sum)).toBe('$0.06');
     expect(formatDollars(0.055)).toBe('$0.06');
   });
 });
