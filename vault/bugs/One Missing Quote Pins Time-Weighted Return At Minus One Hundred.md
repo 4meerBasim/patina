@@ -1,6 +1,6 @@
 # One Missing Quote Pins Time-Weighted Return At Minus One Hundred
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/snapshots.ts:60` composed with `src/lib/returns.ts:26`
 Summary: a single day with a missing price quote values the holding at zero, which drives time-weighted return to exactly −1 and keeps it there for every later period.
 
@@ -73,6 +73,16 @@ Two earlier versions of this note got this section wrong in opposite directions:
 The obvious companion fix is wrong, and worth recording so nobody tries it. Skipping a period whose *end* value is zero leaves the zero mark as the next period's *start*, which the line-25 guard then also skips, so the chain never resumes and TWR reports 0 rather than the real +20%. Dropping zero-valued marks from the series entirely does give +0.2. But neither should be applied unconditionally: if the portfolio genuinely went to zero, −1 is the correct answer, and suppressing it would hide a real wipeout. Any guard here has to distinguish a missing valuation from a true one. A local inference gets most of the way without touching `snapshots.ts`: a zero mark followed by a non-zero mark with no intervening inflow cannot be a genuine wipeout, since a wiped-out portfolio cannot recover without one. That rule gives +0.2 on the spurious case, −1 on a plain wipeout, and −1 on a wipeout followed by re-funding. So the first fix makes the second far more robust rather than being strictly required for it.
 
 Found by composing two modules that the suite only tests in isolation: `snapshots.test.ts:109` and `positions.test.ts:505` each document the zero fallback, and `returns.test.ts:115` asserts the −1 while framing it as "without producing NaN". No test puts them together.
+
+## Fix
+
+Fixed on `fix/returns-engine`, all three arms, since this note showed that none of them closes the hole alone.
+
+**The snapshot fix, which is the one that matters.** `holdingValue` no longer collapses "no quote" into "worth nothing": a holding whose instrument has no quote now falls through to its own last dated valuation mark, and only values at zero when it has neither. That also covers the second zero arm the note identified, since both arms now run through the same fallback.
+
+**The import boundary.** `readBackup` runs `assertPriceable` over the parsed file and refuses one that carries a holding with neither a quote for its instrument nor a dated mark of its own, naming the holding. It runs after both parsers, so the laxer CSV path is covered too, and it closes the partial-coverage variant as well as the empty-table one.
+
+**The local inference in the chain.** `withoutMissingMarks` drops a zero mark that a later non-zero mark proves cannot be real — a wiped-out portfolio cannot recover without an inflow — so a legacy backup that already carries a zero day no longer pins the figure. The note's own case now reports the real +20%. A series that ends at zero still reports −1, and so does a wipeout followed by fresh money, because the inflow is the evidence that the zero was genuine. The companion fix this note warned against was not used: no period is skipped on a zero end value.
 
 ## Related
 - Bug: [[Money-Weighted Return Is Absurd Or Absent On Short Windows]], [[Time-Weighted Return Overstates Gains When A Flow Has No Valuation Mark]]

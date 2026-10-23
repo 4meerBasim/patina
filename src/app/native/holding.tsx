@@ -141,7 +141,7 @@ export default function NativeHolding() {
     [allValuations, holding],
   );
 
-  const annualised = useMemo(() => {
+  const moneyWeighted = useMemo(() => {
     if (!holding) return null;
     const flows = transactions
       .filter((tx) => tx.holdingId === holding.id)
@@ -199,12 +199,12 @@ export default function NativeHolding() {
         color: position.currencyGain >= 0 ? Colors.verdigris : Colors.copper,
       });
     }
-    if (annualised !== null) {
+    if (moneyWeighted !== null) {
       rows.push({
         key: 'irr',
-        label: 'Annualized return',
-        value: formatPercent(annualised * 100, { signed: true, minimumFractionDigits: 1, maximumFractionDigits: 1 }),
-        color: annualised >= 0 ? Colors.verdigris : Colors.copper,
+        label: moneyWeighted.annualised ? 'Annualized return' : 'Return so far',
+        value: formatPercent(moneyWeighted.rate * 100, { signed: true, minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+        color: moneyWeighted.rate >= 0 ? Colors.verdigris : Colors.copper,
       });
     }
     rows.push({
@@ -214,7 +214,7 @@ export default function NativeHolding() {
       color: Colors.ash,
     });
     return rows;
-  }, [position, isManual, isForeign, annualised, weightPercent, baseCurrency]);
+  }, [position, isManual, isForeign, moneyWeighted, weightPercent, baseCurrency]);
 
   const hero = formatCurrency(value, baseCurrency);
   const decimalAt = hero.lastIndexOf('.');

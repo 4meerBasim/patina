@@ -49,7 +49,7 @@ describe('timeWeightedReturn', () => {
     expect(twr).not.toBeCloseTo(0.2 + 0.25, 3);
   });
 
-  it('excludes a mid-period contribution from the period return', () => {
+  it('weights a mid-period contribution by the part of the period it was invested', () => {
     const twr = timeWeightedReturn(
       [
         { date: JAN, value: 1000 },
@@ -58,20 +58,37 @@ describe('timeWeightedReturn', () => {
       [{ date: '2020-01-15T00:00:00.000Z', amount: 1000 }],
     );
 
-    expect(twr).toBeCloseTo(0.1, 10);
+    // Modified Dietz: the contribution was at work for 168 of the period's 182 days.
+    expect(twr).toBeCloseTo(100 / (1000 + (1000 * 168) / 182), 10);
+    expect(twr).toBeCloseTo(0.052, 10);
     expect(twr).not.toBeCloseTo(2100 / 1000 - 1, 2);
+    expect(twr).toBeLessThan(0.1);
   });
 
-  it('excludes a mid-period withdrawal from the period return', () => {
-    expect(
-      timeWeightedReturn(
-        [
-          { date: JAN, value: 1000 },
-          { date: JUL, value: 700 },
-        ],
-        [{ date: '2020-03-01T00:00:00.000Z', amount: -400 }],
-      ),
-    ).toBeCloseTo(0.1, 10);
+  it('charges the full period to a contribution dated at the period end', () => {
+    const twr = timeWeightedReturn(
+      [
+        { date: JAN, value: 1000 },
+        { date: JUL, value: 2100 },
+      ],
+      [{ date: JUL, amount: 1000 }],
+    );
+
+    expect(twr).toBeCloseTo(0.1, 10);
+  });
+
+  it('weights a mid-period withdrawal by the part of the period it was absent', () => {
+    const twr = timeWeightedReturn(
+      [
+        { date: JAN, value: 1000 },
+        { date: JUL, value: 700 },
+      ],
+      [{ date: '2020-03-01T00:00:00.000Z', amount: -400 }],
+    );
+
+    // The 400 left after 60 of the period's 182 days, so it earned for none of the rest.
+    expect(twr).toBeCloseTo(100 / (1000 - (400 * 122) / 182), 10);
+    expect(twr).toBeGreaterThan(0.1);
   });
 
   it('returns a negative figure when the portfolio loses value', () => {
@@ -112,7 +129,7 @@ describe('timeWeightedReturn', () => {
     expect(twr).toBe(0);
   });
 
-  it('skips a mid-chain period that starts from a zero value without producing NaN', () => {
+  it('drops a zero mark that a later non-zero mark proves was a missing valuation', () => {
     const twr = timeWeightedReturn(
       [
         { date: JAN, value: 100 },
@@ -124,6 +141,44 @@ describe('timeWeightedReturn', () => {
 
     expect(Number.isNaN(twr)).toBe(false);
     expect(Number.isFinite(twr)).toBe(true);
+    expect(twr).toBeCloseTo(-0.5, 10);
+  });
+
+  it('reports the real gain when a missing quote zeroes a day in the middle', () => {
+    const twr = timeWeightedReturn(
+      [
+        { date: JAN, value: 100000 },
+        { date: JUL, value: 0 },
+        { date: NEXT_JAN, value: 120000 },
+      ],
+      [],
+    );
+
+    expect(twr).toBeCloseTo(0.2, 10);
+  });
+
+  it('still reports a total loss when the series ends at zero', () => {
+    expect(
+      timeWeightedReturn(
+        [
+          { date: JAN, value: 100 },
+          { date: JUL, value: 0 },
+        ],
+        [],
+      ),
+    ).toBeCloseTo(-1, 10);
+  });
+
+  it('still reports a total loss when a wipeout is followed by fresh money', () => {
+    const twr = timeWeightedReturn(
+      [
+        { date: JAN, value: 100 },
+        { date: JUL, value: 0 },
+        { date: NEXT_JAN, value: 50 },
+      ],
+      [{ date: NEXT_JAN, amount: 50 }],
+    );
+
     expect(twr).toBeCloseTo(-1, 10);
   });
 
@@ -166,21 +221,23 @@ describe('timeWeightedReturn', () => {
 
 describe('moneyWeightedReturn', () => {
   it('solves a ten percent annual gain as a ten percent internal rate of return', () => {
-    expect(
-      moneyWeightedReturn([{ date: JAN, amount: 1000 }], {
-        date: ONE_YEAR_LATER,
-        value: 1100,
-      }),
-    ).toBeCloseTo(0.1, 6);
+    const mwr = moneyWeightedReturn([{ date: JAN, amount: 1000 }], {
+      date: ONE_YEAR_LATER,
+      value: 1100,
+    });
+
+    expect(mwr?.annualised).toBe(true);
+    expect(mwr?.rate).toBeCloseTo(0.1, 6);
   });
 
   it('solves a ten percent annual loss as a negative internal rate of return', () => {
-    expect(
-      moneyWeightedReturn([{ date: JAN, amount: 1000 }], {
-        date: ONE_YEAR_LATER,
-        value: 900,
-      }),
-    ).toBeCloseTo(-0.1, 6);
+    const mwr = moneyWeightedReturn([{ date: JAN, amount: 1000 }], {
+      date: ONE_YEAR_LATER,
+      value: 900,
+    });
+
+    expect(mwr?.annualised).toBe(true);
+    expect(mwr?.rate).toBeCloseTo(-0.1, 6);
   });
 
   it('exceeds the time-weighted return when a large contribution lands before a gain', () => {
@@ -198,9 +255,9 @@ describe('moneyWeightedReturn', () => {
     const mwr = moneyWeightedReturn(flows, { date: NEXT_JAN, value: 15000 });
 
     expect(twr).toBeCloseTo(0.5, 10);
-    expect(mwr).not.toBeNull();
-    expect(mwr as number).toBeCloseTo(1.0562, 3);
-    expect(mwr as number).toBeGreaterThan(twr);
+    expect(mwr?.annualised).toBe(true);
+    expect(mwr?.rate).toBeCloseTo(1.0562, 3);
+    expect(mwr?.rate as number).toBeGreaterThan(twr);
   });
 
   it('falls below the time-weighted return when a large contribution lands before a loss', () => {
@@ -218,9 +275,9 @@ describe('moneyWeightedReturn', () => {
     const mwr = moneyWeightedReturn(flows, { date: NEXT_JAN, value: 5000 });
 
     expect(twr).toBeCloseTo(-0.5, 10);
-    expect(mwr).not.toBeNull();
-    expect(mwr as number).toBeCloseTo(-0.722, 3);
-    expect(mwr as number).toBeLessThan(twr);
+    expect(mwr?.annualised).toBe(true);
+    expect(mwr?.rate).toBeCloseTo(-0.722, 3);
+    expect(mwr?.rate as number).toBeLessThan(twr);
   });
 
   it('returns null when every cash flow has the same sign', () => {
@@ -245,30 +302,57 @@ describe('moneyWeightedReturn', () => {
     ).toBeNull();
   });
 
-  it('returns null when the true rate lies above the bisection bracket', () => {
+  it('reports a period return rather than a rate for a window of hours', () => {
     const mwr = moneyWeightedReturn([{ date: JAN, amount: 100 }], {
       date: '2020-01-01T01:00:00.000Z',
       value: 200,
     });
 
-    expect(mwr).toBeNull();
+    expect(mwr?.annualised).toBe(false);
+    expect(mwr?.rate).toBeCloseTo(1, 10);
   });
 
   it('reports no rate for a total loss', () => {
     expect(moneyWeightedReturn([{ date: JAN, amount: 1000 }], { date: NEXT_JAN, value: 0 })).toBeNull();
   });
 
-  it('reports no rate for a gain over an hour, which annualises past the bracket', () => {
-    expect(
-      moneyWeightedReturn([{ date: JAN, amount: 100 }], {
-        date: '2020-01-01T01:00:00.000Z',
-        value: 200,
-      }),
-    ).toBeNull();
+  it('reports a period return rather than a four-figure rate for a gain over a month', () => {
+    const mwr = moneyWeightedReturn([{ date: JAN, amount: 1000 }], {
+      date: '2020-01-26T00:00:00.000Z',
+      value: 1250,
+    });
+
+    expect(mwr?.annualised).toBe(false);
+    expect(mwr?.rate).toBeCloseTo(0.25, 10);
   });
 
-  it('reports no rate for a zero-length period', () => {
-    expect(moneyWeightedReturn([{ date: JAN, amount: 1000 }], { date: JAN, value: 1100 })).toBeNull();
+  it('annualises once the window reaches a month', () => {
+    const mwr = moneyWeightedReturn([{ date: JAN, amount: 1000 }], {
+      date: '2020-02-01T00:00:00.000Z',
+      value: 1010,
+    });
+
+    expect(mwr?.annualised).toBe(true);
+  });
+
+  it('counts money taken out in a short-window period return', () => {
+    const mwr = moneyWeightedReturn(
+      [
+        { date: JAN, amount: 1000 },
+        { date: '2020-01-10T00:00:00.000Z', amount: -50 },
+      ],
+      { date: '2020-01-20T00:00:00.000Z', value: 1000 },
+    );
+
+    expect(mwr?.annualised).toBe(false);
+    expect(mwr?.rate).toBeCloseTo(0.05, 10);
+  });
+
+  it('reports a period return for a zero-length period', () => {
+    const mwr = moneyWeightedReturn([{ date: JAN, amount: 1000 }], { date: JAN, value: 1100 });
+
+    expect(mwr?.annualised).toBe(false);
+    expect(mwr?.rate).toBeCloseTo(0.1, 10);
   });
 
   it('reports no rate when the end value rounds to nothing', () => {
@@ -286,7 +370,7 @@ describe('moneyWeightedReturn', () => {
       value: 1100,
     });
     expect(mwr).not.toBeNull();
-    expect(Number.isFinite(mwr as number)).toBe(true);
+    expect(Number.isFinite(mwr?.rate as number)).toBe(true);
   });
 
   it('solves a multi-contribution schedule to a rate that zeroes the net present value', () => {
@@ -299,7 +383,7 @@ describe('moneyWeightedReturn', () => {
     );
 
     expect(mwr).not.toBeNull();
-    const rate = mwr as number;
+    const rate = mwr?.rate as number;
     const years = (to: string): number =>
       (Date.parse(to) - Date.parse(JAN)) / (365.25 * 24 * 60 * 60 * 1000);
     const npv =

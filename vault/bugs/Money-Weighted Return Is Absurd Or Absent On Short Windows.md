@@ -1,6 +1,6 @@
 # Money-Weighted Return Is Absurd Or Absent On Short Windows
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/returns.ts:55` and `src/lib/returns.ts:67`
 Summary: annualising a window of days produces either a meaningless rate or no rate at all, depending on which direction the portfolio moved.
 
@@ -30,6 +30,10 @@ The suite covers only the extremes where `null` is obviously right: a total loss
 The fix is to stop annualising below a minimum window — a month is the conventional floor — and show the plain period return instead, labelled as a period return rather than a rate. That addresses both failure modes at once, and it is a product decision about what the Performance screen should say, which is why this is recorded rather than quietly patched.
 
 An earlier version of this note claimed the opposite: that a 25% one-month gain returned `null` because of the `high = 10` bracket. That was wrong on both the value and the mechanism. It came from reimplementing the bisection step in a scratch script instead of running the module, which skipped the Newton pass entirely. The figures above come from executing `src/lib/returns.ts`.
+
+## Fix
+
+Fixed on `fix/returns-engine`, with the product decision this note asked for: below a thirty-day window the function stops annualising and reports the plain period return instead. `moneyWeightedReturn` now returns `{ rate, annualised }` rather than a bare number, and both holding screens read the flag — the row reads `Annualised return` when the rate is annualised and `Return so far` when it is a period return. The absurd gains and the silent `null`s both go: a 25% month reports `0.25` as a period return, an hour's doubling reports `1`, and a zero-length window reports its plain gain instead of nothing. Windows of a month or more still run the Newton-then-bisection solver unchanged, so a true total loss and an end value that rounds to nothing still report no rate.
 
 ## Related
 - Feature: [[Returns Engine]]

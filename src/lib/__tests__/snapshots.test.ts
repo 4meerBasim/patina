@@ -106,9 +106,21 @@ describe('holdingValue', () => {
     expect(holdingValue(holding, [makeQuote('inst-1', 150)], new Map())).toBe(1500);
   });
 
-  it('values an instrument-backed holding at zero when no quote exists', () => {
+  it('values an instrument-backed holding at zero when it has neither a quote nor a mark', () => {
     const holding = makeHolding({ id: 'h-1', instrumentId: 'inst-1', quantity: 10 });
     expect(holdingValue(holding, [makeQuote('inst-other', 150)], new Map())).toBe(0);
+  });
+
+  it('falls back to the last dated mark when an instrument-backed quote is missing', () => {
+    const holding = makeHolding({ id: 'h-1', instrumentId: 'inst-1', quantity: 10 });
+    const valuations = new Map([['h-1', makeValuation('h-1', '2026-02-01', 1480)]]);
+    expect(holdingValue(holding, [makeQuote('inst-other', 150)], valuations)).toBe(1480);
+  });
+
+  it('prefers the quote over a stale mark when both exist', () => {
+    const holding = makeHolding({ id: 'h-1', instrumentId: 'inst-1', quantity: 10 });
+    const valuations = new Map([['h-1', makeValuation('h-1', '2026-02-01', 1480)]]);
+    expect(holdingValue(holding, [makeQuote('inst-1', 150)], valuations)).toBe(1500);
   });
 
   it('rounds an instrument-backed value to cents', () => {
