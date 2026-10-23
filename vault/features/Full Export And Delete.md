@@ -11,9 +11,9 @@ Data portability is a selling point in every manual-tracker roundup the scout re
 
 Delete clears the SQLite database and resets the store, behind a confirmation.
 
-The codec is untested, which for the one piece of logic that can lose rather than mis-display data is the wrong way round — see [[Extract The Backup Codec For Testing]]. The same note records that `rowsToTable` parses JSON with no guard, so a hand-edited backup throws a raw `SyntaxError` at the user.
+The codec is untested, which for the one piece of logic that can lose rather than mis-display data is the wrong way round — see [[Tested Backup Codec]]. The same note records that `rowsToTable` parses JSON with no guard, so a hand-edited backup throws a raw `SyntaxError` at the user.
 
 ## Related
 - Feature: [[Local SQLite Persistence]], [[Domain Data Model]], [[Activity CSV Export]]
-- Enhancement: [[Extract The Backup Codec For Testing]]
+- Enhancement: [[Tested Backup Codec]]
 - Page: [[Editorial Settings]], [[Native Settings]]
