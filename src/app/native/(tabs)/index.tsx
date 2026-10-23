@@ -13,6 +13,7 @@ import { useFigureMask } from '@/lib/privacy-blur';
 import {
   useAllocation,
   useNetWorth,
+  useNotes,
   usePeriodDelta,
   useRecap,
   useSettings,
@@ -84,11 +85,15 @@ export default function NativeHome() {
   const todayDelta = useTodayDelta();
   const movers = useTopMovers(3);
   const recap = useRecap(PERIOD_DAYS[period]);
+  const notes = useNotes();
+  const note = notes.find((item) => !item.read) ?? notes[0] ?? null;
 
   const openHolding = useCallback(
     (id: string) => router.push({ pathname: '/native/holding', params: { id } }),
     [],
   );
+  const openPortfolio = useCallback(() => router.navigate('/native/portfolio'), []);
+  const openNotes = useCallback(() => router.navigate('/native/notes'), []);
 
   const moverRows = useMemo<MoverRowData[]>(
     () =>
@@ -213,7 +218,12 @@ export default function NativeHome() {
         </View>
 
         <Text style={styles.sectionHeader}>Allocation</Text>
-        <View style={styles.allocationCard}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Allocation by class"
+          accessibilityHint="Opens the portfolio grouped by asset class"
+          onPress={openPortfolio}
+          style={styles.allocationCard}>
           <View style={styles.bar}>
             {allocation.map((item) => (
               <View key={item.assetClass} style={{ flex: item.flex, backgroundColor: item.color }} />
@@ -234,7 +244,7 @@ export default function NativeHome() {
               </View>
             ))}
           </View>
-        </View>
+        </Pressable>
 
         {moverRows.length > 0 ? (
           <>
@@ -272,35 +282,44 @@ export default function NativeHome() {
           </>
         ) : null}
 
-        <Text style={styles.sectionHeader}>Today&apos;s note</Text>
-        <View style={styles.noteCard}>
-          <View style={styles.noteIcon}>
-            <Svg
-              width={16}
-              height={16}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke={Colors.brass}
-              strokeWidth={2}
-              strokeLinecap="round">
-              <Circle cx={12} cy={12} r={9} />
-              <Path d="M12 8v5M12 16h.01" />
-            </Svg>
-          </View>
-          <View style={styles.noteBody}>
-            <Text style={styles.noteTitle}>Crypto drove 62% of today&apos;s change</Text>
-            <Text style={styles.noteSub}>It holds 9% of your total. Review allocation.</Text>
-          </View>
-          <Svg width={8} height={14} viewBox="0 0 8 14" style={styles.noteChevron}>
-            <Path
-              d="M1 1l6 6-6 6"
-              stroke={Colors.disabled}
-              strokeWidth={2}
-              fill="none"
-              strokeLinecap="round"
-            />
-          </Svg>
-        </View>
+        {note ? (
+          <>
+            <Text style={styles.sectionHeader}>Today&apos;s note</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={note.body}
+              accessibilityHint="Opens Notes"
+              onPress={openNotes}
+              style={styles.noteCard}>
+              <View style={styles.noteIcon}>
+                <Svg
+                  width={16}
+                  height={16}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={Colors.brass}
+                  strokeWidth={2}
+                  strokeLinecap="round">
+                  <Circle cx={12} cy={12} r={9} />
+                  <Path d="M12 8v5M12 16h.01" />
+                </Svg>
+              </View>
+              <View style={styles.noteBody}>
+                <Text style={styles.noteTitle}>{note.body}</Text>
+                {note.detail ? <Text style={styles.noteSub}>{note.detail}</Text> : null}
+              </View>
+              <Svg width={8} height={14} viewBox="0 0 8 14" style={styles.noteChevron}>
+                <Path
+                  d="M1 1l6 6-6 6"
+                  stroke={Colors.disabled}
+                  strokeWidth={2}
+                  fill="none"
+                  strokeLinecap="round"
+                />
+              </Svg>
+            </Pressable>
+          </>
+        ) : null}
       </ScrollView>
     </View>
   );

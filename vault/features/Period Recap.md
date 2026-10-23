@@ -10,5 +10,5 @@ Summary: answers "what moved my net worth" over a chosen period, splitting the c
 The editorial home screen renders it under the period control, and `hasRecap` hides the block when all three figures are zero rather than showing a row of nothings.
 
 ## Related
-- Feature: [[Daily Net Worth Snapshots]], [[Period and Segmented Selectors]], [[Returns Engine]], [[Transactions and Lots]]
+- Feature: [[Daily Net Worth Snapshots]], [[Period and Segmented Selectors]], [[Returns Engine]], [[Transactions and Lots]], [[Interactive Native Home]]
 - Page: [[Editorial Home]]

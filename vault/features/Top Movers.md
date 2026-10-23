@@ -10,5 +10,5 @@ Summary: lists the few holdings whose value moved most since the last stored quo
 It reads `livePrices`, the in-memory map the price provider fills, rather than the `priceQuotes` table, so it reflects the current session's refresh and leaves the stored history alone.
 
 ## Related
-- Feature: [[Offline Price Provider]], [[App State Store]], [[Money and Numeral Formatting]], [[Daily Net Worth Snapshots]]
+- Feature: [[Offline Price Provider]], [[App State Store]], [[Money and Numeral Formatting]], [[Daily Net Worth Snapshots]], [[Interactive Native Home]]
 - Page: [[Editorial Home]]
