@@ -325,21 +325,36 @@ export const selectRecap = memoizeKeyed(
 );
 
 export const selectDividendCalendar = memoizeKeyed(
-  (transactions: Transaction[], today: string): DividendMonth[] =>
-    computeDividendCalendar({ transactions, today }),
-  (_transactions, today) => today,
+  (
+    transactions: Transaction[],
+    today: string,
+    fxRates: FxRate[],
+    baseCurrency: CurrencyCode,
+  ): DividendMonth[] => computeDividendCalendar({ transactions, today, fxRates, baseCurrency }),
+  (_transactions, today, _fxRates, baseCurrency) => `${today}:${baseCurrency}`,
 );
 
 export const selectDividendForecast = memoizeKeyed(
-  (transactions: Transaction[], today: string): DividendMonth[] =>
-    computeDividendForecast({ transactions, today }),
-  (_transactions, today) => today,
+  (
+    transactions: Transaction[],
+    today: string,
+    fxRates: FxRate[],
+    baseCurrency: CurrencyCode,
+  ): DividendMonth[] => computeDividendForecast({ transactions, today, fxRates, baseCurrency }),
+  (_transactions, today, _fxRates, baseCurrency) => `${today}:${baseCurrency}`,
 );
 
 export const selectYieldOnCost = memoizeKeyed(
-  (transactions: Transaction[], lots: Lot[], today: string): YieldOnCost[] =>
-    computeYieldOnCost({ transactions, lots, today }),
-  (_transactions, _lots, today) => today,
+  (
+    transactions: Transaction[],
+    lots: Lot[],
+    holdings: Holding[],
+    today: string,
+    fxRates: FxRate[],
+    baseCurrency: CurrencyCode,
+  ): YieldOnCost[] =>
+    computeYieldOnCost({ transactions, lots, holdings, today, fxRates, baseCurrency }),
+  (_transactions, _lots, _holdings, today, _fxRates, baseCurrency) => `${today}:${baseCurrency}`,
 );
 
 export const selectRebalanceHints = memoize(

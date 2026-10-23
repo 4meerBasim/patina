@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import type { Lot, Transaction } from '@/data/types';
+import type { FxRate, Holding, Lot, Transaction } from '@/data/types';
 import {
   computeDividendCalendar,
   computeDividendForecast,
@@ -36,9 +36,29 @@ function lot(overrides: Partial<Lot>): Lot {
   };
 }
 
+const fxRates: FxRate[] = [
+  { base: 'USD', quote: 'EUR', rate: 0.92, asOf: '2026-10-01' },
+  { base: 'USD', quote: 'GBP', rate: 0.78, asOf: '2026-10-01' },
+];
+
+function holding(overrides: Partial<Holding> = {}): Holding {
+  return {
+    id: 'h1',
+    accountId: 'a1',
+    assetClass: 'stocks',
+    instrumentId: 'inst-1',
+    name: null,
+    quantity: 10,
+    currency: 'USD',
+    ...overrides,
+  };
+}
+
 describe('computeDividendCalendar', () => {
   it('returns the trailing twelve months in chronological order ending at the month of today', () => {
     const result = computeDividendCalendar({
+      fxRates,
+      baseCurrency: 'USD',
       today: '2026-10-15',
       transactions: [
         tx({ id: 't1', date: '2026-01-10', amount: 30 }),
@@ -65,6 +85,8 @@ describe('computeDividendCalendar', () => {
 
   it('sums several dividends falling in the same month', () => {
     const result = computeDividendCalendar({
+      fxRates,
+      baseCurrency: 'USD',
       today: '2026-10-15',
       transactions: [
         tx({ id: 't1', date: '2026-06-01', amount: 12.5 }),
@@ -80,6 +102,8 @@ describe('computeDividendCalendar', () => {
 
   it('reports a month with no dividends as zero rather than omitting it', () => {
     const result = computeDividendCalendar({
+      fxRates,
+      baseCurrency: 'USD',
       today: '2026-10-15',
       transactions: [
         tx({ id: 't1', date: '2026-08-10', amount: 40 }),
@@ -93,6 +117,8 @@ describe('computeDividendCalendar', () => {
 
   it('excludes a dividend in the month twelve back and includes one in the month eleven back', () => {
     const result = computeDividendCalendar({
+      fxRates,
+      baseCurrency: 'USD',
       today: '2026-10-15',
       transactions: [
         tx({ id: 'old', date: '2025-10-31', amount: 99 }),
@@ -107,6 +133,8 @@ describe('computeDividendCalendar', () => {
 
   it('ignores non-dividend transactions and dividends that are not positive', () => {
     const result = computeDividendCalendar({
+      fxRates,
+      baseCurrency: 'USD',
       today: '2026-10-15',
       transactions: [
         tx({ id: 'buy', type: 'buy', date: '2026-06-01', amount: 500 }),
@@ -126,6 +154,8 @@ describe('computeDividendCalendar', () => {
 
   it('zero-fills the months before a holding acquired mid-year started paying', () => {
     const result = computeDividendCalendar({
+      fxRates,
+      baseCurrency: 'USD',
       today: '2026-10-15',
       transactions: [
         tx({ id: 'buy', type: 'buy', date: '2026-07-01', amount: 5000 }),
@@ -149,9 +179,10 @@ describe('computeDividendCalendar', () => {
     expect(result[11]).toEqual({ month: '2026-10', amount: 12 });
   });
 
-  // Bug: Dividend Calendar Sums Foreign Currency Without FX — asserts current behaviour
-  it('adds a dividend paid in another currency straight onto the base-currency total', () => {
+  it('converts a dividend paid in another currency before adding it to the total', () => {
     const result = computeDividendCalendar({
+      fxRates,
+      baseCurrency: 'USD',
       today: '2026-10-15',
       transactions: [
         tx({ id: 'usd', date: '2026-05-10', amount: 100, currency: 'USD' }),
@@ -159,14 +190,32 @@ describe('computeDividendCalendar', () => {
       ],
     });
 
+    // 100 EUR at 0.92 EUR per USD is 108.70 USD.
     expect(result.find((month) => month.month === '2026-05')).toEqual({
       month: '2026-05',
-      amount: 200,
+      amount: 208.7,
+    });
+  });
+
+  it('reports the same payments in whichever base currency is asked for', () => {
+    const inEur = computeDividendCalendar({
+      today: '2026-10-15',
+      transactions: [tx({ id: 'usd', date: '2026-05-10', amount: 100, currency: 'USD' })],
+      fxRates,
+      baseCurrency: 'EUR',
+    });
+
+    expect(inEur.find((month) => month.month === '2026-05')).toEqual({
+      month: '2026-05',
+      amount: 92,
     });
   });
 
   it('returns twelve zero months when there are no transactions', () => {
-    const result = computeDividendCalendar({ today: '2026-10-15', transactions: [] });
+    const result = computeDividendCalendar({
+      fxRates,
+      baseCurrency: 'USD',
+      today: '2026-10-15', transactions: [] });
 
     expect(result).toHaveLength(12);
     expect(result.every((month) => month.amount === 0)).toBe(true);
@@ -178,6 +227,8 @@ describe('computeDividendCalendar', () => {
 describe('computeDividendForecast', () => {
   it('repeats a quarterly cadence at the average amount across the next twelve months', () => {
     const result = computeDividendForecast({
+      fxRates,
+      baseCurrency: 'USD',
       today: '2026-10-20',
       transactions: [
         tx({ id: 'q1', date: '2025-10-15', amount: 10 }),
@@ -205,6 +256,8 @@ describe('computeDividendForecast', () => {
 
   it('treats a single recorded payment as annual and projects it once', () => {
     const result = computeDividendForecast({
+      fxRates,
+      baseCurrency: 'USD',
       today: '2026-10-20',
       transactions: [tx({ id: 'only', date: '2026-03-10', amount: 50 })],
     });
@@ -217,6 +270,8 @@ describe('computeDividendForecast', () => {
 
   it('uses the median gap rather than the mean when the intervals are irregular', () => {
     const result = computeDividendForecast({
+      fxRates,
+      baseCurrency: 'USD',
       today: '2026-10-20',
       transactions: [
         tx({ id: 'p1', date: '2026-01-15', amount: 10 }),
@@ -233,7 +288,10 @@ describe('computeDividendForecast', () => {
   });
 
   it('returns twelve zero months when there are no transactions', () => {
-    const result = computeDividendForecast({ today: '2026-10-20', transactions: [] });
+    const result = computeDividendForecast({
+      fxRates,
+      baseCurrency: 'USD',
+      today: '2026-10-20', transactions: [] });
 
     expect(result).toHaveLength(12);
     expect(result.every((month) => month.amount === 0)).toBe(true);
@@ -245,6 +303,9 @@ describe('computeDividendForecast', () => {
 describe('computeYieldOnCost', () => {
   it('divides trailing income by remaining lot cost basis as a percent and sorts descending', () => {
     const result = computeYieldOnCost({
+      fxRates,
+      baseCurrency: 'USD',
+      holdings: [holding()],
       today: '2026-10-15',
       transactions: [
         tx({ id: 'a1', holdingId: 'h1', date: '2026-03-10', amount: 40 }),
@@ -266,8 +327,27 @@ describe('computeYieldOnCost', () => {
     expect(result[1].yieldOnCost).toBeCloseTo(3, 10);
   });
 
+  it('brings a foreign cost basis and a dividend paid in another currency to one currency', () => {
+    const result = computeYieldOnCost({
+      fxRates,
+      baseCurrency: 'USD',
+      holdings: [holding({ id: 'h-eur', currency: 'EUR' })],
+      today: '2026-10-15',
+      transactions: [tx({ id: 'd', holdingId: 'h-eur', date: '2026-09-10', amount: 50 })],
+      lots: [lot({ id: 'l-eur', holdingId: 'h-eur', remainingQuantity: 10, costPerUnit: 100 })],
+    });
+
+    // 1000 EUR of cost is 1086.96 USD, so 50 USD of income is 4.6% rather than 5%.
+    expect(result[0].costBasis).toBeCloseTo(1086.96, 2);
+    expect(result[0].trailingIncome).toBe(50);
+    expect(result[0].yieldOnCost).toBeCloseTo(4.6, 2);
+  });
+
   it('excludes income older than the trailing twelve months', () => {
     const result = computeYieldOnCost({
+      fxRates,
+      baseCurrency: 'USD',
+      holdings: [holding()],
       today: '2026-10-15',
       transactions: [
         tx({ id: 'old', holdingId: 'h1', date: '2025-10-20', amount: 500 }),
@@ -283,6 +363,9 @@ describe('computeYieldOnCost', () => {
 
   it('skips holdings whose remaining cost basis is zero, negative or missing', () => {
     const result = computeYieldOnCost({
+      fxRates,
+      baseCurrency: 'USD',
+      holdings: [holding()],
       today: '2026-10-15',
       transactions: [
         tx({ id: 'z', holdingId: 'zero', date: '2026-06-01', amount: 50 }),
@@ -305,6 +388,10 @@ describe('computeYieldOnCost', () => {
   });
 
   it('returns nothing when there are no transactions and no lots', () => {
-    expect(computeYieldOnCost({ today: '2026-10-15', transactions: [], lots: [] })).toEqual([]);
+    expect(computeYieldOnCost({
+      fxRates,
+      baseCurrency: 'USD',
+      holdings: [holding()],
+      today: '2026-10-15', transactions: [], lots: [] })).toEqual([]);
   });
 });

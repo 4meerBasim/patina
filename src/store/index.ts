@@ -250,15 +250,28 @@ export function useRecap(days: number): Recap {
 }
 
 export function useDividendCalendar(): DividendMonth[] {
-  return useDataStore((state) => selectDividendCalendar(state.transactions, TODAY));
+  return useDataStore((state) =>
+    selectDividendCalendar(state.transactions, TODAY, state.fxRates, state.settings.baseCurrency),
+  );
 }
 
 export function useDividendForecast(): DividendMonth[] {
-  return useDataStore((state) => selectDividendForecast(state.transactions, TODAY));
+  return useDataStore((state) =>
+    selectDividendForecast(state.transactions, TODAY, state.fxRates, state.settings.baseCurrency),
+  );
 }
 
 export function useYieldOnCost(): YieldOnCost[] {
-  return useDataStore((state) => selectYieldOnCost(state.transactions, state.lots, TODAY));
+  return useDataStore((state) =>
+    selectYieldOnCost(
+      state.transactions,
+      state.lots,
+      state.holdings,
+      TODAY,
+      state.fxRates,
+      state.settings.baseCurrency,
+    ),
+  );
 }
 
 export function useAllocationTargets(): AllocationTargets {

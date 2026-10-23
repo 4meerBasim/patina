@@ -1,4 +1,5 @@
-import type { Lot, Transaction } from '@/data/types';
+import type { CurrencyCode, FxRate, Holding, Lot, Transaction } from '@/data/types';
+import { convertCurrency } from '@/lib/snapshots';
 
 export type DividendMonth = { month: string; amount: number };
 
@@ -12,12 +13,17 @@ export type YieldOnCost = {
 export type DividendInput = {
   transactions: Transaction[];
   today: string;
+  fxRates: FxRate[];
+  baseCurrency: CurrencyCode;
 };
 
 export type YieldInput = {
   transactions: Transaction[];
   lots: Lot[];
+  holdings: Holding[];
   today: string;
+  fxRates: FxRate[];
+  baseCurrency: CurrencyCode;
 };
 
 function roundCents(value: number): number {
@@ -39,12 +45,18 @@ function dividendsOnly(transactions: Transaction[]): Transaction[] {
   return transactions.filter((tx) => tx.type === 'dividend' && tx.amount > 0);
 }
 
+// A payment is recorded in the currency it arrived in, so every figure these functions
+// add together or divide has to be brought to one currency first.
+function inBase(amount: number, from: CurrencyCode, input: DividendInput | YieldInput): number {
+  return convertCurrency(amount, from, input.baseCurrency, input.fxRates);
+}
+
 export function computeDividendCalendar(input: DividendInput): DividendMonth[] {
   const current = monthIndex(input.today.slice(0, 7));
   const byMonth = new Map<number, number>();
   for (const tx of dividendsOnly(input.transactions)) {
     const key = monthIndex(tx.date.slice(0, 7));
-    byMonth.set(key, (byMonth.get(key) ?? 0) + tx.amount);
+    byMonth.set(key, (byMonth.get(key) ?? 0) + inBase(tx.amount, tx.currency, input));
   }
   const months: DividendMonth[] = [];
   for (let i = 11; i >= 0; i -= 1) {
@@ -83,7 +95,8 @@ export function computeDividendForecast(input: DividendInput): DividendMonth[] {
   for (const [, payments] of groupByHolding(dividendsOnly(input.transactions))) {
     const ordered = [...payments].sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
     const indices = ordered.map((tx) => monthIndex(tx.date.slice(0, 7)));
-    const amount = ordered.reduce((sum, tx) => sum + tx.amount, 0) / ordered.length;
+    const amount =
+      ordered.reduce((sum, tx) => sum + inBase(tx.amount, tx.currency, input), 0) / ordered.length;
 
     let interval = 12;
     if (indices.length >= 2) {
@@ -116,14 +129,22 @@ export function computeYieldOnCost(input: YieldInput): YieldOnCost[] {
     if (!tx.holdingId) continue;
     const index = monthIndex(tx.date.slice(0, 7));
     if (index < trailingStart || index > current) continue;
-    incomeByHolding.set(tx.holdingId, (incomeByHolding.get(tx.holdingId) ?? 0) + tx.amount);
+    incomeByHolding.set(
+      tx.holdingId,
+      (incomeByHolding.get(tx.holdingId) ?? 0) + inBase(tx.amount, tx.currency, input),
+    );
   }
 
+  const currencyByHolding = new Map(
+    input.holdings.map((holding) => [holding.id, holding.currency] as const),
+  );
   const costByHolding = new Map<string, number>();
   for (const lot of input.lots) {
+    const native = lot.remainingQuantity * lot.costPerUnit;
+    const currency = currencyByHolding.get(lot.holdingId) ?? input.baseCurrency;
     costByHolding.set(
       lot.holdingId,
-      (costByHolding.get(lot.holdingId) ?? 0) + lot.remainingQuantity * lot.costPerUnit,
+      (costByHolding.get(lot.holdingId) ?? 0) + inBase(native, currency, input),
     );
   }
 
