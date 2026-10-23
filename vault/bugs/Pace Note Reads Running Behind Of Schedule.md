@@ -1,6 +1,6 @@
 # Pace Note Reads Running Behind Of Schedule
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/insights.ts:147`
 Summary: the goal pace note interpolates the pace word into a fixed sentence, which reads correctly for `ahead` and ungrammatically for `behind`.
 
@@ -23,7 +23,16 @@ This is user-visible copy on the Notes screen, in an app whose whole voice is ca
 
 Worth checking the Arabic strings for the same shape when [[Arabic Holding and Add Holding]] lands — a template that reads naturally in one language often does not survive interpolation in another.
 
-Found by `src/lib/__tests__/insights.test.ts`, which asserts the current wording so the suite stays green. Not fixed in the harness PR, which carries no behaviour changes.
+## Fix
+
+Fixed on `fix/pace-copy`. The sentence is branched on the pace rather than interpolating the word into a shared tail, so `behind` loses the preposition that only `ahead` governs:
+
+```
+House is running ahead of schedule.
+House is running behind schedule.
+```
+
+Both readings are asserted now — the suite only covered `behind`, which is how the ungrammatical one stayed green. The warning about interpolation not surviving translation still stands for [[Arabic Holding and Add Holding]]: the fix here is two whole sentences, which is the shape Arabic will need too.
 
 ## Related
 - Feature: [[Insight Rules Engine]], [[Goals With Linked Holdings]]
