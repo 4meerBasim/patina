@@ -9,3 +9,4 @@ Mobile Screens "Try next" on turn 2: "convert the remaining screens (onboarding,
 ## Related
 - Page: [[Editorial Onboarding]], [[Editorial Allocation]], [[Editorial Performance]], [[Editorial Notes]], [[Editorial Activity]], [[Editorial Home]]
 - Enhancements: [[Native Notes Screen]]
+- Bugs: [[Four Native Screens Have No Route In]]

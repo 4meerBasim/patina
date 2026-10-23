@@ -76,6 +76,6 @@ Found by composing two modules that the suite only tests in isolation: `snapshot
 
 ## Related
 - Bug: [[Money-Weighted Return Is Absurd Or Absent On Short Windows]], [[Time-Weighted Return Overstates Gains When A Flow Has No Valuation Mark]]
-- Feature: [[Returns Engine]], [[Daily Net Worth Snapshots]], [[Offline Price Provider]]
+- Feature: [[Returns Engine]], [[Daily Net Worth Snapshots]], [[Offline Price Provider]], [[Manual Valuation Marks]]
 - Enhancement: [[Real Market Price Provider]]
 - Page: [[Editorial Performance]]

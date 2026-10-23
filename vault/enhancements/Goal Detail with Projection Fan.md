@@ -7,4 +7,5 @@ Summary: A goal detail screen whose chart shows a projection fan of likely outco
 Design Document: goal detail adds a projection fan (Ash 10–20% bands) on the performance chart. Today goal cards are not tappable, though the Native cards already draw a chevron.
 
 ## Related
-- Page: [[Editorial Goals]], [[Native Goals]]
+- Page: [[Editorial Goals]], [[Native Goals]], [[Editorial Goal Detail]], [[Native Goal Detail]]
+- Features: [[Goals With Linked Holdings]]

@@ -22,7 +22,7 @@ Thresholds are passed in rather than read from a constant, so the planned per-us
 Covered by `src/lib/__tests__/insights.test.ts`, including each threshold exactly at its limit versus just over.
 
 ## Related
-- Feature: [[Returns Engine]], [[App State Store]]
+- Feature: [[Returns Engine]], [[App State Store]], [[Fee Analyzer]], [[Goals With Linked Holdings]]
 - Bug: [[Pace Note Reads Running Behind Of Schedule]]
-- Page: [[Editorial Notes]]
+- Page: [[Editorial Notes]], [[Editorial Goal Detail]]
 - Enhancement: [[Native Notes Screen]]

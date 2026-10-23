@@ -8,5 +8,5 @@ Design Document: an overlay blurs the app-switcher snapshot when AppState goes i
 
 ## Related
 - Page: [[Editorial Settings]], [[Native Settings]]
-- Features: [[Settings Toggles]]
+- Features: [[Settings Toggles]], [[Biometric App Lock]]
 - Enhancements: [[Net Worth Reveal Animation]]

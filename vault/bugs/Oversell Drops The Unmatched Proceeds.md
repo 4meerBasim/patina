@@ -29,5 +29,5 @@ So this is latent, with a named trigger: any sell transaction whose quantity exc
 Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR, and that PR has to decide the policy — reject the oversell, or realise the surplus at zero cost — before the test can be inverted.
 
 ## Related
-- Feature: [[Returns Engine]], [[Domain Data Model]], [[Local SQLite Persistence]], [[Demo Seed Data]]
+- Feature: [[Returns Engine]], [[Domain Data Model]], [[Local SQLite Persistence]], [[Demo Seed Data]], [[Transactions and Lots]]
 - Page: [[Editorial Holding Detail]], [[Native Holding Detail]]

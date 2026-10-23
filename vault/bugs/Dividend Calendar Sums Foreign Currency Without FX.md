@@ -35,5 +35,5 @@ That makes this latent, with two named triggers: a dividend in a currency other 
 Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR, covering both functions since it is one defect in one module.
 
 ## Related
-- Feature: [[Seeded FX Rates]], [[Domain Data Model]], [[Money and Numeral Formatting]], [[Demo Seed Data]], [[Persisted Settings]]
-- Page: [[Editorial Holding Detail]], [[Native Holding Detail]]
+- Feature: [[Seeded FX Rates]], [[Domain Data Model]], [[Money and Numeral Formatting]], [[Demo Seed Data]], [[Persisted Settings]], [[Dividend Tracking and Calendar]]
+- Page: [[Editorial Holding Detail]], [[Native Holding Detail]], [[Editorial Dividends]], [[Native Dividends]]

@@ -10,4 +10,4 @@ Summary: Floating blurred-glass pill with four labelled tabs plus a separate rou
 - Page: [[Native Home]], [[Native Portfolio]], [[Native Goals]]
 - Features: [[Native Glass Surfaces]]
 - Enhancements: [[Native Notes Screen]]
-- Bugs: none known
+- Bugs: [[Four Native Screens Have No Route In]]

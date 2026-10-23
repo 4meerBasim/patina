@@ -8,5 +8,5 @@ Design Document §4.2: touch-down on an arc thickens it; dragging round the ring
 
 ## Related
 - Page: [[Editorial Allocation]]
-- Features: [[Allocation Class Selection]]
+- Features: [[Allocation Class Selection]], [[Target Allocation and Rebalance Hints]]
 - Bugs: [[Rebalance Does Not Normalise Targets Over 100]]

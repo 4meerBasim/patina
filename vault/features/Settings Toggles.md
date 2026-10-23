@@ -10,6 +10,6 @@ Both toggles now persist through the store (`updateSettings` writing `privacyBlu
 
 ## Related
 - Page: [[Editorial Settings]], [[Native Settings]]
-- Features: [[Persisted Settings]]
+- Features: [[Persisted Settings]], [[Biometric App Lock]]
 - Enhancements: [[Privacy Blur on Launch]]
 - Bugs: none known
