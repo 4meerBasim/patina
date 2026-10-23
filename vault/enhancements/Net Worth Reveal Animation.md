@@ -9,3 +9,4 @@ Design Document §4.1: the brass hairline draws under the caption (0–240 ms, r
 ## Related
 - Page: [[Editorial Home]], [[Native Home]]
 - Enhancements: [[Digit Drift Animation]], [[Privacy Blur on Launch]]
+- Features: [[Newsreader Hero on Native Home]]

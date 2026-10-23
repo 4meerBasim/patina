@@ -8,5 +8,5 @@ Design Document §5: each digit that changes cross-fades while drifting 24px (up
 
 ## Related
 - Page: [[Editorial Home]], [[Editorial Holding Detail]], [[Editorial Add Holding]]
-- Features: [[Add Holding Live Preview]]
+- Features: [[Add Holding Live Preview]], [[Newsreader Hero on Native Home]]
 - Enhancements: [[Net Worth Reveal Animation]], [[Holding Chart Scrubbing and Markers]], [[Conversational Add Holding Steps]]

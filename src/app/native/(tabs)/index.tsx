@@ -6,7 +6,7 @@ import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg'
 import { Glass } from '@/components/native/glass';
 import { GroupedCard, KeyValueRow, RowSeparator } from '@/components/native/grouped-list';
 import { SegmentedControl } from '@/components/native/segmented-control';
-import { AssetClassColors, Colors } from '@/constants/theme';
+import { AssetClassColors, Colors, Fonts } from '@/constants/theme';
 import type { AssetClass } from '@/data/types';
 import { formatCurrency, formatNumber, formatPercent, formatSignedCurrency } from '@/lib/money';
 import { useFigureMask } from '@/lib/privacy-blur';
@@ -355,17 +355,16 @@ const styles = StyleSheet.create({
     color: Colors.slate,
   },
   heroValue: {
+    fontFamily: Fonts.newsreaderLight44,
     fontSize: 44,
     lineHeight: 52,
-    fontWeight: '600',
-    letterSpacing: -0.5,
+    letterSpacing: -0.88,
     color: Colors.bone,
     fontVariant: ['tabular-nums'],
     marginTop: 4,
   },
   heroCents: {
     color: Colors.slate,
-    fontWeight: '500',
   },
   chips: {
     flexDirection: 'row',
