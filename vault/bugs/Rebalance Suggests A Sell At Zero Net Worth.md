@@ -1,6 +1,6 @@
 # Rebalance Suggests A Sell At Zero Net Worth
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/rebalance.ts:45`
 Summary: With a net worth of zero every class drifts from its target by the full target, so each hint comes back as `sell` with a delta of 0 — a trade the user is told to make and cannot.
 
@@ -27,7 +27,9 @@ The onboarding "Skip and add holdings by hand" route (`src/app/editorial/onboard
 
 So this is latent, with a named trigger: a user holding nothing while targets remain non-zero. It becomes live the moment either a delete-holding path or a genuinely empty start ships — both plausible, since the store already has the delete action waiting for a caller. `hold` is the correct action for a zero delta regardless of drift, which is also the smallest fix.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR.
+## Fix
+
+Fixed on `fix/rebalance-targets` with the smallest fix this note identified: a zero delta is a `hold` whatever the drift says. `deltaValue === 0` now short-circuits ahead of the `buy`/`sell` ternary, so an empty portfolio with non-zero targets reports five holds instead of five sells of nothing, and the allocation screen's `action !== 'hold'` filter leaves the block empty rather than listing `Sell $0` five times. The trigger the note named — a delete-holding path, or a genuinely empty start — can now ship without taking this with it.
 
 ## Related
 - Feature: [[Allocation Class Selection]], [[Demo Seed Data]], [[App State Store]], [[Local SQLite Persistence]], [[Target Allocation and Rebalance Hints]]

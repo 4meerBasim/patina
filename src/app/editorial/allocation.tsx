@@ -6,7 +6,7 @@ import { Caption } from '@/components/editorial/caption';
 import { AssetClassColors, Colors, Fonts } from '@/constants/theme';
 import type { AllocationTargets, AssetClass } from '@/data/types';
 import { formatCurrency } from '@/lib/money';
-import type { RebalanceHint } from '@/lib/rebalance';
+import { targetTotal, type RebalanceHint } from '@/lib/rebalance';
 import { useAllocation, useAllocationTargets, useDataActions, useRebalanceHints, useSettings } from '@/store';
 
 type ClassMeta = {
@@ -168,12 +168,15 @@ export default function AllocationScreen() {
   const adjust = useCallback((key: AssetClass, delta: number) => {
     setDraft((prev) => ({ ...prev, [key]: Math.max(0, Math.min(100, prev[key] + delta)) }));
   }, []);
+  const draftTotal = CLASS_META.reduce((sum, meta) => sum + draft[meta.key], 0);
+  const canSave = draftTotal <= 100;
   const save = useCallback(() => {
+    if (draftTotal > 100) return;
     void setAllocationTargets(draft);
     setIsEditing(false);
-  }, [setAllocationTargets, draft]);
+  }, [setAllocationTargets, draft, draftTotal]);
 
-  const draftTotal = CLASS_META.reduce((sum, meta) => sum + draft[meta.key], 0);
+  const storedTotal = targetTotal(targets);
 
   return (
     <View style={styles.screen}>
@@ -239,7 +242,17 @@ export default function AllocationScreen() {
           </View>
         </View>
 
-        {actionable.length > 0 ? (
+        {storedTotal > 100 ? (
+          <View style={styles.rebalance}>
+            <View style={styles.sectionDivider}>
+              <Caption>To reach target</Caption>
+            </View>
+            <Text style={styles.unfundable}>
+              Targets add up to {storedTotal}% of net worth. Lower them to 100% to see what to
+              trade.
+            </Text>
+          </View>
+        ) : actionable.length > 0 ? (
           <View style={styles.rebalance}>
             <View style={styles.sectionDivider}>
               <Caption>To reach target</Caption>
@@ -253,7 +266,9 @@ export default function AllocationScreen() {
         {isEditing ? (
           <View style={styles.editor}>
             <View style={styles.sectionDivider}>
-              <Caption>Targets · {draftTotal}% assigned</Caption>
+              <Caption>
+                Targets · {draftTotal}% assigned{draftTotal > 100 ? ' · over 100%' : ''}
+              </Caption>
             </View>
             {CLASS_META.map((meta) => (
               <TargetEditorRow key={meta.key} meta={meta} value={draft[meta.key]} onAdjust={adjust} />
@@ -269,7 +284,9 @@ export default function AllocationScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Save targets"
-                style={styles.saveButton}
+                accessibilityState={{ disabled: !canSave }}
+                disabled={!canSave}
+                style={[styles.saveButton, canSave ? null : styles.saveButtonDisabled]}
                 onPress={save}>
                 <Text style={styles.saveLabel}>Save targets</Text>
               </Pressable>
@@ -466,6 +483,16 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  saveButtonDisabled: {
+    opacity: 0.4,
+  },
+  unfundable: {
+    fontFamily: Fonts.manrope,
+    fontSize: 14,
+    lineHeight: 21,
+    color: Colors.ash,
+    paddingVertical: 12,
   },
   saveLabel: {
     fontFamily: Fonts.manropeSemiBold,
