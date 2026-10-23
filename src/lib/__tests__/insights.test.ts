@@ -220,9 +220,15 @@ describe('computeInsights', () => {
       const goals: InsightGoal[] = [{ id: 'g1', name: 'House', percent: 10, pace: 'behind' }];
       const [candidate] = computeInsights(input({ goals }));
       expect(candidate.kind).toBe('pace');
-      // Bug: Pace Note Reads Running Behind Of Schedule — asserts current behaviour
-      expect(candidate.body).toBe('House is running behind of schedule.');
+      expect(candidate.body).toBe('House is running behind schedule.');
       expect(candidate.detail).toBeNull();
+    });
+
+    it('reports a goal running ahead', () => {
+      const goals: InsightGoal[] = [{ id: 'g1', name: 'House', percent: 10, pace: 'ahead' }];
+      const [candidate] = computeInsights(input({ goals }));
+      expect(candidate.kind).toBe('pace');
+      expect(candidate.body).toBe('House is running ahead of schedule.');
     });
 
     it('says nothing about a goal that is on pace', () => {

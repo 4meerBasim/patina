@@ -144,7 +144,10 @@ export function computeInsights(input: InsightInput): InsightCandidate[] {
     candidates.push({
       kind: 'pace',
       key: `pace-${goal.id}`,
-      body: `${goal.name} is running ${goal.pace} of schedule.`,
+      body:
+        goal.pace === 'ahead'
+          ? `${goal.name} is running ahead of schedule.`
+          : `${goal.name} is running behind schedule.`,
       detail: null,
       priority: 10,
     });
