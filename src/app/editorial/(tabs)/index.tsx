@@ -13,10 +13,11 @@ import Svg, { Defs, LinearGradient, Line, Path, Stop } from 'react-native-svg';
 
 import { Caption } from '@/components/editorial/caption';
 import { DriftingFigure } from '@/components/drifting-figure';
+import { BrassRule, Reveal, useReveal } from '@/components/reveal';
 import { DirectionView } from '@/components/editorial/direction-view';
 import { useLocale } from '@/components/editorial/locale';
 import { PeriodSelector } from '@/components/editorial/period-selector';
-import { AssetClassColors, Colors, Fonts } from '@/constants/theme';
+import { AssetClassColors, Colors, Fonts, Motion } from '@/constants/theme';
 import type { AssetClass, CurrencyCode } from '@/data/types';
 import {
   formatCurrency,
@@ -46,6 +47,9 @@ const CHART_AREA =
 const CHART_LINE = 'M0 70 C30 66 50 74 80 60 S130 40 160 48 S210 30 240 34 S290 18 320 22 L354 14';
 
 const PERIOD_DAYS = 30;
+// The hero starts resolving 120ms in, while the brass rule is still drawing.
+const HERO_DELAY = 120;
+
 const EN_PERIODS = ['1W', '1M', '1Y', 'All'];
 const AR_PERIODS = ['أسبوع', 'شهر', 'سنة', 'الكل'];
 const PERIOD_DAYS_MAP = [7, 30, 365, 3650];
@@ -207,6 +211,7 @@ function EnglishHome() {
     maximumFractionDigits: 2,
   });
   const figures = useFigureMask();
+  const revealing = useReveal();
 
   const concentration = notes.find((note) => note.kind === 'concentration');
   const symbolOf = (holdingId: string | null) =>
@@ -245,36 +250,38 @@ function EnglishHome() {
           <Caption>Net worth · as of 09:12</Caption>
           <Avatar label="R" />
         </View>
-        <View style={styles.brassRule} />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Net worth ${figures.hidden ? 'hidden' : hero}`}
-          accessibilityHint={figures.accessibilityHint}
-          onPress={figures.onPress}
-          onLongPress={figures.onLongPress}>
-          {figures.hidden ? (
-            <Text style={styles.hero}>{figures.mask(hero)}</Text>
-          ) : (
-            <DriftingFigure
-              value={hero}
-              amount={netWorth.total}
-              style={styles.hero}
-              tailStyle={styles.heroDecimal}
-              accessibilityLabel={`Net worth ${hero}`}
-            />
-          )}
-        </Pressable>
-        <View style={styles.deltas}>
+        <BrassRule active={revealing} style={styles.brassRule} />
+        <Reveal active={revealing} delay={HERO_DELAY} duration={Motion.reveal}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Net worth ${figures.hidden ? 'hidden' : hero}`}
+            accessibilityHint={figures.accessibilityHint}
+            onPress={figures.onPress}
+            onLongPress={figures.onLongPress}>
+            {figures.hidden ? (
+              <Text style={styles.hero}>{figures.mask(hero)}</Text>
+            ) : (
+              <DriftingFigure
+                value={hero}
+                amount={netWorth.total}
+                style={styles.hero}
+                tailStyle={styles.heroDecimal}
+                accessibilityLabel={`Net worth ${hero}`}
+              />
+            )}
+          </Pressable>
+        </Reveal>
+        <Reveal active={revealing} delay={HERO_DELAY + Motion.stagger} style={styles.deltas}>
           <Text style={[styles.delta, periodDelta.amount >= 0 ? styles.gain : styles.loss]}>
             {deltaEn(periodDelta, baseCurrency, 'past 30 days')}
           </Text>
           <Text style={[styles.delta, todayDelta.amount >= 0 ? styles.gain : styles.loss]}>
             {deltaEn(todayDelta, baseCurrency, 'today')}
           </Text>
-        </View>
+        </Reveal>
       </View>
 
-      <View>
+      <Reveal active={revealing} delay={HERO_DELAY + Motion.stagger * 2}>
         <PeriodSelector options={EN_PERIODS} selectedIndex={period} onSelect={setPeriod} />
         <Pressable
           accessibilityRole="button"
@@ -283,7 +290,7 @@ function EnglishHome() {
           onPress={openPerformance}>
           <HomeChart gradientId="homeChartEn" />
         </Pressable>
-      </View>
+      </Reveal>
 
       {hasRecap ? (
         <View>
@@ -428,6 +435,7 @@ function ArabicHome() {
     maximumFractionDigits: 2,
   });
   const figures = useFigureMask();
+  const revealing = useReveal();
   const heroCurrency = formatCurrency(netWorth.total, baseCurrency, {
     locale: 'ar',
     numeralSystem: 'arabic',
@@ -480,39 +488,41 @@ function ArabicHome() {
             <ArabicCaption>صافي الثروة · حتى ٠٩:١٢</ArabicCaption>
             <Avatar label="ر" />
           </View>
-          <View style={styles.brassRule} />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="صافي الثروة"
-            accessibilityHint={figures.accessibilityHint}
-            onPress={figures.onPress}
-            onLongPress={figures.onLongPress}>
-            {figures.hidden ? (
-              <Text style={styles.arHero}>{`⁦${figures.mask(heroNumber)}⁩`}</Text>
-            ) : (
-              <View style={styles.arHeroRow}>
-                <DriftingFigure
-                  value={`⁦${heroNumber}⁩`}
-                  amount={netWorth.total}
-                  style={styles.arHero}
-                  tailStyle={styles.heroDecimal}
-                  accessibilityLabel={`صافي الثروة ${heroNumber}`}
-                />
-                <Text style={styles.arHeroCurrency}>{symbol}</Text>
-              </View>
-            )}
-          </Pressable>
-          <View style={styles.deltas}>
+          <BrassRule active={revealing} style={styles.brassRule} />
+          <Reveal active={revealing} delay={HERO_DELAY} duration={Motion.reveal}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="صافي الثروة"
+              accessibilityHint={figures.accessibilityHint}
+              onPress={figures.onPress}
+              onLongPress={figures.onLongPress}>
+              {figures.hidden ? (
+                <Text style={styles.arHero}>{`⁦${figures.mask(heroNumber)}⁩`}</Text>
+              ) : (
+                <View style={styles.arHeroRow}>
+                  <DriftingFigure
+                    value={`⁦${heroNumber}⁩`}
+                    amount={netWorth.total}
+                    style={styles.arHero}
+                    tailStyle={styles.heroDecimal}
+                    accessibilityLabel={`صافي الثروة ${heroNumber}`}
+                  />
+                  <Text style={styles.arHeroCurrency}>{symbol}</Text>
+                </View>
+              )}
+            </Pressable>
+          </Reveal>
+          <Reveal active={revealing} delay={HERO_DELAY + Motion.stagger} style={styles.deltas}>
             <Text style={[styles.arDelta, periodDelta.amount >= 0 ? styles.gain : styles.loss]}>
               {deltaAr(periodDelta, baseCurrency, periodLabel)}
             </Text>
             <Text style={[styles.arDelta, todayDelta.amount >= 0 ? styles.gain : styles.loss]}>
               {deltaAr(todayDelta, baseCurrency, 'اليوم')}
             </Text>
-          </View>
+          </Reveal>
         </View>
 
-        <View>
+        <Reveal active={revealing} delay={HERO_DELAY + Motion.stagger * 2}>
           <PeriodSelector
             options={AR_PERIODS}
             selectedIndex={period}
@@ -526,7 +536,7 @@ function ArabicHome() {
             onPress={openPerformance}>
             <HomeChart gradientId="homeChartAr" isMirrored />
           </Pressable>
-        </View>
+        </Reveal>
 
         {hasRecap ? (
           <View>
