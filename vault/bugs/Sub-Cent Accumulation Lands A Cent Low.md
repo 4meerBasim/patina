@@ -1,6 +1,6 @@
 # Sub-Cent Accumulation Lands A Cent Low
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/money.ts:57`, `src/lib/amount.ts:19`
 Summary: A total built by repeatedly adding a half cent lands just below the exact decimal value in binary, so the formatters round it down and display one cent less than the arithmetic says.
 
@@ -27,7 +27,9 @@ No such accumulation was traced in the current computation layer, which makes th
 
 Not a logic error so much as a consequence of carrying money in binary doubles and rounding half-up at the display edge. A real fix means accumulating in integer cents, or rounding with an epsilon, and it belongs in one place rather than in each formatter. The same `Math.round(value * 100)` tie-sensitivity is the cause of [[Half-Cent Value Loses Its Cents In Currency Output]].
 
-Not fixed in the harness PR, which carries no behaviour changes. Both tests assert the current behaviour and name this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR.
+## Fix
+
+Fixed on `fix/money-formatters` by rounding with an epsilon in one place, as this note prescribed. `snapDecimalNoise` in `src/lib/amount.ts` snaps a magnitude to its 15 significant digits before any formatting, and both `amount.ts` and `money.ts` route their magnitudes through it. Eleven additions of 0.005 now format as `$0.06`, the same as the literal 0.055. Above 1e12 the snap is skipped, because 15 digits no longer reach the cents there and the raw double is the more accurate value — which is also what keeps the large-value fix in [[formatDollars Loses Precision On Very Large Values]] true.
 
 ## Related
 - Feature: [[Money and Numeral Formatting]], [[Add Holding Live Preview]]

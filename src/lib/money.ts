@@ -1,11 +1,11 @@
 import type { CurrencyCode } from '@/data/types';
+import { MINUS, snapDecimalNoise } from './amount';
 
 export { parseAmount } from './amount';
 
 export type Locale = 'en' | 'ar';
 export type NumeralSystem = 'latin' | 'arabic';
 
-const MINUS = '−';
 const EASTERN_DIGITS = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
 const ARABIC_GROUP = '٬';
 const ARABIC_DECIMAL = '٫';
@@ -45,16 +45,29 @@ export function formatNumber(value: number, options: FormatOptions = {}): string
     minimumFractionDigits: min,
     maximumFractionDigits: Math.max(min, max),
     useGrouping: true,
-  }).format(Math.abs(value));
-  const signed = value < 0 ? `${MINUS}${latin}` : latin;
+  }).format(snapDecimalNoise(Math.abs(value)));
+  const signed = isNegative(value, latin) ? `${MINUS}${latin}` : latin;
   if (numeralSystem === 'latin') return signed;
   return toArabicNumerals(
     signed.replace(/,/g, ARABIC_GROUP).replace(/\./g, ARABIC_DECIMAL),
   );
 }
 
-function fractionDigitsFor(value: number): number {
-  return Number.isInteger(Math.round(value * 100) / 100) ? 0 : 2;
+function isNegative(value: number, digits: string): boolean {
+  return value < 0 && /[1-9]/.test(toLatinNumerals(digits));
+}
+
+function currencyFractionDigits(
+  magnitude: number,
+  options: FormatOptions,
+): { min: number; max: number } {
+  const { minimumFractionDigits, maximumFractionDigits } = options;
+  if (minimumFractionDigits != null || maximumFractionDigits != null) {
+    const min = minimumFractionDigits ?? 0;
+    return { min, max: Math.max(min, maximumFractionDigits ?? 2) };
+  }
+  const cents = formatNumber(magnitude, { maximumFractionDigits: 2 });
+  return cents.includes('.') ? { min: 2, max: 2 } : { min: 0, max: 0 };
 }
 
 export function formatCurrency(
@@ -64,13 +77,15 @@ export function formatCurrency(
 ): string {
   const { locale = 'en', ...rest } = options;
   const symbol = CURRENCY_SYMBOLS[currency];
-  const digits = formatNumber(Math.abs(value), {
-    ...rest,
-    minimumFractionDigits: rest.minimumFractionDigits,
-    maximumFractionDigits: rest.maximumFractionDigits ?? Math.max(rest.minimumFractionDigits ?? 0, fractionDigitsFor(value)),
+  const magnitude = Math.abs(value);
+  const { min, max } = currencyFractionDigits(magnitude, rest);
+  const digits = formatNumber(magnitude, {
+    numeralSystem: rest.numeralSystem,
+    minimumFractionDigits: min,
+    maximumFractionDigits: max,
   });
   const body = locale === 'ar' ? `${digits} ${symbol}` : `${symbol}${digits}`;
-  return value < 0 ? `${MINUS}${body}` : body;
+  return isNegative(value, digits) ? `${MINUS}${body}` : body;
 }
 
 export function formatSignedCurrency(
@@ -79,7 +94,7 @@ export function formatSignedCurrency(
   options: FormatOptions & { locale?: Locale } = {},
 ): string {
   const magnitude = formatCurrency(Math.abs(value), currency, options);
-  if (value < 0) return `${MINUS}${magnitude}`;
+  if (isNegative(value, magnitude)) return `${MINUS}${magnitude}`;
   return `+${magnitude}`;
 }
 
@@ -89,13 +104,14 @@ export function formatPercent(
 ): string {
   const { numeralSystem = 'latin', signed = false, minimumFractionDigits, maximumFractionDigits } =
     options;
+  const max = maximumFractionDigits ?? 2;
   const digits = formatNumber(Math.abs(value), {
     numeralSystem,
-    minimumFractionDigits: minimumFractionDigits ?? 2,
-    maximumFractionDigits: maximumFractionDigits ?? 2,
+    minimumFractionDigits: minimumFractionDigits ?? Math.min(2, max),
+    maximumFractionDigits: max,
   });
   const percentMark = numeralSystem === 'arabic' ? '٪' : '%';
   const body = `${digits}${percentMark}`;
-  if (value < 0) return `${MINUS}${body}`;
+  if (isNegative(value, digits)) return `${MINUS}${body}`;
   return signed ? `+${body}` : body;
 }

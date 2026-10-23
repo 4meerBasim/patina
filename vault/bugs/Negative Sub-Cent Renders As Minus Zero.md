@@ -1,6 +1,6 @@
 # Negative Sub-Cent Renders As Minus Zero
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/money.ts:49`, `:73`, `:82`, `:99`
 Summary: All four `money.ts` formatters choose the sign from the input and the digits from the rounded value, so any negative that rounds to zero renders with a minus in front of a zero.
 
@@ -30,7 +30,9 @@ No literal `-0` input is needed, and that is the point. `value < 0` is false for
 
 One `value < 0` test per formatter is the whole cause; a single shared helper that takes the sign from the rounded magnitude fixes all four. The companion defect in `src/lib/amount.ts` produces the same visual result through a different mechanism — `toLocaleString` emitting the sign itself — and is tracked as [[formatDollars Renders Negative Zero As $-0]].
 
-Not fixed in the harness PR, which carries no behaviour changes. The four tests assert the current behaviour and name this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR.
+## Fix
+
+Fixed on `fix/money-formatters`. One shared `isNegative(value, digits)` helper now gates all four signs, and it requires both a negative input and a non-zero digit in the rendered output, read through `toLatinNumerals` so eastern digits count. `formatNumber(-0.004)` is `0`, `formatCurrency(-0.004, 'USD')` is `$0`, `formatSignedCurrency(-0.004, 'USD')` is `+$0` — the same string its positive twin produces — and `formatPercent(-0.001, { signed: true })` is `+0.00%`.
 
 ## Related
 - Feature: [[Money and Numeral Formatting]]
