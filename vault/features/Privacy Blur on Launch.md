@@ -16,6 +16,6 @@ Visibility is session state in its own small zustand store, deliberately not per
 Distinct from [[Biometric App Lock]], which controls access rather than shoulder-surfing; the two gates nest, lock outside blur.
 
 ## Related
-- Feature: [[Biometric App Lock]], [[Persisted Settings]], [[Settings Toggles]], [[Design Tokens and Fonts]], [[Money and Numeral Formatting]], [[Arabic RTL Home]]
+- Feature: [[Biometric App Lock]], [[Persisted Settings]], [[Settings Toggles]], [[Design Tokens and Fonts]], [[Money and Numeral Formatting]], [[Arabic RTL Home]], [[Newsreader Hero on Native Home]]
 - Page: [[Editorial Home]], [[Native Home]], [[Editorial Settings]], [[Native Settings]]
 - Enhancements: [[Net Worth Reveal Animation]]
