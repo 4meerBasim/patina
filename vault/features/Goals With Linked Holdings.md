@@ -10,7 +10,7 @@ Summary: goals are created, edited and deleted by the user, funded by linked hol
 The editorial goals tab pushes to the detail screen with the goal id, and the same route with no id creates one. The native detail screen has no route into it — see [[Four Finished Screens Have No Route In]].
 
 ## Related
-- Feature: [[Domain Data Model]], [[App State Store]], [[Insight Rules Engine]], [[Money and Numeral Formatting]]
+- Feature: [[Domain Data Model]], [[App State Store]], [[Insight Rules Engine]], [[Money and Numeral Formatting]], [[Native Notes Screen]]
 - Bugs: [[Pace Note Reads Running Behind Of Schedule]], [[Four Finished Screens Have No Route In]]
 - Page: [[Editorial Goal Detail]], [[Native Goal Detail]], [[Editorial Goals]], [[Native Goals]]
 - Enhancement: [[Goal Detail with Projection Fan]]

@@ -10,5 +10,5 @@ Summary: turns a fund's expense ratio into what it costs this year and what it c
 The per-holding figure renders as the `Expense ratio` row on both holding detail screens, as `0.03% · $12/yr`. The portfolio totals feed the Fees note on the Notes screen.
 
 ## Related
-- Feature: [[Insight Rules Engine]], [[Domain Data Model]], [[Money and Numeral Formatting]]
+- Feature: [[Insight Rules Engine]], [[Domain Data Model]], [[Money and Numeral Formatting]], [[Native Notes Screen]]
 - Page: [[Editorial Holding Detail]], [[Native Holding Detail]], [[Editorial Notes]]
