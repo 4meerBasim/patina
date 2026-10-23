@@ -1,6 +1,6 @@
 # Oversell Drops The Unmatched Proceeds
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/positions.ts:82`
 Summary: A sell for more units than the lots can cover realises only the matched part, and the unmatched units' proceeds are never counted anywhere.
 
@@ -26,7 +26,15 @@ Not reachable from the UI. Neither add sheet can create a sell — `src/app/edit
 
 So this is latent, with a named trigger: any sell transaction whose quantity exceeds the sum of `lot.quantity` for its holding, arriving through the seed, a future import, or the sell UI whenever one ships. The write path does not block it either — the sell branch at `src/store/data-store.ts:263` drains the available lots and discards the surplus quantity just as silently.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR, and that PR has to decide the policy — reject the oversell, or realise the surplus at zero cost — before the test can be inverted.
+## Fix
+
+Fixed on `fix/oversell-proceeds`. The policy this note asked the PR to decide: **unmatched units are counted, not priced.**
+
+`realisedNative` now returns `{ realised, unmatched }`, and the leftover quantity of every sell is accumulated instead of falling off the end of the loop. `HoldingPosition` carries it as `unmatchedSellQuantity`, and both holding detail screens render a `Sold without a purchase` row in copper whenever it is above zero — so the figure is no longer silent, which was the real defect.
+
+Realising the surplus at zero cost was the other option and was rejected. It would have read 4000 for the two-lot oversell, but the same rule makes every sell against a holding with no lot history pure profit — and a broker CSV that starts mid-stream, with sells of shares bought before the export window, is the ordinary case rather than a pathological one. Inventing a zero cost basis there overstates realised gain far more often than the old silence understated it. The realised figure therefore still covers only the units a lot actually backs, which is correct for those units, and the unmatched count says plainly that it is not the whole story.
+
+The write path at `src/store/data-store.ts:263` is unchanged, and on a second look it loses nothing: it only decrements `remainingQuantity`, so the surplus is implicit in the data (sell quantity against lot quantity) rather than discarded, and `computePositions` is what now surfaces it.
 
 ## Related
 - Feature: [[Returns Engine]], [[Domain Data Model]], [[Local SQLite Persistence]], [[Demo Seed Data]], [[Transactions and Lots]]

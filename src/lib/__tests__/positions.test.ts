@@ -364,8 +364,21 @@ describe('computePositions realised and unrealised split', () => {
 });
 
 describe('computePositions overselling', () => {
-  // Bug: Oversell Drops The Unmatched Proceeds — asserts current behaviour
-  it('drops the proceeds of units that no lot can cover', () => {
+  it('reports no unmatched units for a sell the lots fully cover', () => {
+    const positions = computePositions(
+      makeInput({
+        holdings: [makeHolding({ quantity: 5 })],
+        lots: [makeLot({ quantity: 10, costPerUnit: 100, remainingQuantity: 5 })],
+        transactions: [makeSell({ quantity: 5, price: 150, amount: 750 })],
+        priceQuotes: [makeQuote(150)],
+      }),
+    );
+
+    expect(positions[0].realisedGain).toBe(250);
+    expect(positions[0].unmatchedSellQuantity).toBe(0);
+  });
+
+  it('counts the units no lot can cover instead of pricing them at zero cost', () => {
     const lots = [
       makeLot({ id: 'lot1', quantity: 10, costPerUnit: 100, remainingQuantity: 0 }),
       makeLot({
@@ -383,6 +396,7 @@ describe('computePositions overselling', () => {
     );
 
     expect(positions[0].realisedGain).toBe(2500);
+    expect(positions[0].unmatchedSellQuantity).toBe(5);
 
     const afterLaterSell = computePositions(
       makeInput({
@@ -396,6 +410,7 @@ describe('computePositions overselling', () => {
     );
 
     expect(afterLaterSell[0].realisedGain).toBe(2500);
+    expect(afterLaterSell[0].unmatchedSellQuantity).toBe(10);
   });
 
   it('reports no realised gain for a sell against a holding with no lots', () => {
@@ -408,6 +423,7 @@ describe('computePositions overselling', () => {
     );
 
     expect(positions[0].realisedGain).toBe(0);
+    expect(positions[0].unmatchedSellQuantity).toBe(5);
     expect(Number.isNaN(positions[0].realisedGain)).toBe(false);
     expect(positions[0].costBasis).toBeNull();
     expect(positions[0].unrealisedGain).toBeNull();
