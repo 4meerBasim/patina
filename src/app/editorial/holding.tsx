@@ -132,7 +132,7 @@ export default function HoldingScreen() {
   const fee = feeAnalysis.holdings.find((item) => item.holdingId === holding?.id);
   const yoc = yieldOnCost.find((item) => item.holdingId === holding?.id);
 
-  const annualised = useMemo(() => {
+  const moneyWeighted = useMemo(() => {
     if (!holding || isManual) return null;
     return moneyWeightedReturn(
       transactions
@@ -267,15 +267,15 @@ export default function HoldingScreen() {
       valueColor: position.currencyGain >= 0 ? Colors.verdigris : Colors.copper,
     });
   }
-  if (annualised !== null) {
+  if (moneyWeighted !== null) {
     rows.push({
-      label: 'Annualised return',
-      value: formatPercent(annualised * 100, {
+      label: moneyWeighted.annualised ? 'Annualised return' : 'Return so far',
+      value: formatPercent(moneyWeighted.rate * 100, {
         signed: true,
         minimumFractionDigits: 1,
         maximumFractionDigits: 1,
       }),
-      valueColor: annualised >= 0 ? Colors.verdigris : Colors.copper,
+      valueColor: moneyWeighted.rate >= 0 ? Colors.verdigris : Colors.copper,
     });
   }
   if (fee) {

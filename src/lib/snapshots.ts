@@ -57,8 +57,10 @@ export function holdingValue(
 ): number {
   if (holding.instrumentId) {
     const quote = priceQuotes.find((item) => item.instrumentId === holding.instrumentId);
-    return roundCents(holding.quantity * (quote?.price ?? 0));
+    if (quote) return roundCents(holding.quantity * quote.price);
   }
+  // No quote does not mean worth nothing: fall back to the last dated mark for this
+  // holding. A zero here becomes a zero net-worth day, which pins time-weighted return.
   return roundCents(latestValuations.get(holding.id)?.value ?? 0);
 }
 

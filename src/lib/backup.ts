@@ -158,6 +158,22 @@ function parseCsvBackup(text: string): BackupData {
   };
 }
 
+// A holding priced by neither a quote nor a dated mark values at zero, and one zero day
+// pins time-weighted return at -100% for every period after it. Refuse the file instead.
+function assertPriceable(data: BackupData): void {
+  const quoted = new Set(data.priceQuotes.map((quote) => quote.instrumentId));
+  const marked = new Set(data.valuations.map((valuation) => valuation.holdingId));
+  const orphan = data.holdings.find(
+    (holding) =>
+      !marked.has(holding.id) && !(holding.instrumentId && quoted.has(holding.instrumentId)),
+  );
+  if (orphan) {
+    throw new Error(
+      `Backup is missing a price or valuation for ${orphan.name ?? orphan.id}, so it cannot be imported.`,
+    );
+  }
+}
+
 function freshFile(name: string): File {
   const file = new File(Paths.cache, name);
   if (file.exists) file.delete();
@@ -186,5 +202,7 @@ export async function writeAndShareBackup(
 export async function readBackup(uri: string): Promise<BackupData> {
   const file = new File(uri);
   const text = await file.text();
-  return file.extension.toLowerCase() === '.csv' ? parseCsvBackup(text) : parseJson(text);
+  const data = file.extension.toLowerCase() === '.csv' ? parseCsvBackup(text) : parseJson(text);
+  assertPriceable(data);
+  return data;
 }
