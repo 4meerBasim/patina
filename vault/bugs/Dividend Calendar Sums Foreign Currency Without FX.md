@@ -1,6 +1,6 @@
 # Dividend Calendar Sums Foreign Currency Without FX
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/dividends.ts:47`, `src/lib/dividends.ts:119`
 Summary: Both dividend aggregations add `tx.amount` across currencies with no conversion, so a mixed-currency portfolio produces a total that is not denominated in anything.
 
@@ -32,7 +32,15 @@ More importantly, no dividend transaction can be created in the app at all. The 
 
 That makes this latent, with two named triggers: a dividend in a currency other than its holding's cost currency makes the yield-on-cost percentage wrong on a screen the user can already reach; a dividend in a currency other than the base currency makes the calendar total wrong, though only a deep link gets there today. A third variant is already true on the deep-linked screen — `src/app/editorial/dividends.tsx:98` formats the un-converted sum with `baseCurrency`, so once the base currency is cycled in native settings (`src/app/native/settings.tsx:132`) the USD seed totals render under an IQD, SAR or AED symbol. Six currencies ship; the data that would expose this does not exist yet.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR, covering both functions since it is one defect in one module.
+## Fix
+
+Fixed on `fix/dividend-calendar-fx`, both functions and the forecast with them, since it was one defect in one module.
+
+`src/lib/dividends.ts` now imports `convertCurrency` — the conversion data that was sitting unused — and every payment is brought to the base currency through one `inBase` helper before it is added to anything. `computeDividendCalendar` and `computeDividendForecast` therefore total in the base currency, which is the currency `src/app/editorial/dividends.tsx:98` was already labelling them with; cycling the base currency in native settings now re-denominates the figures instead of relabelling them.
+
+`computeYieldOnCost` had the stacked error and needed the holdings to fix it: `YieldInput` now carries `holdings`, so each lot's `costPerUnit` is converted from its holding's own currency rather than being divided into income measured in a different one. A EUR-cost holding paid 50 USD reports 4.6% rather than 5%, and the suite asserts that case.
+
+`DividendInput` and `YieldInput` both carry `fxRates` and `baseCurrency`, and the three selectors in `src/store/selectors.ts` key their memo on the base currency so a currency switch recomputes rather than serving a stale total.
 
 ## Related
 - Feature: [[Seeded FX Rates]], [[Domain Data Model]], [[Money and Numeral Formatting]], [[Demo Seed Data]], [[Persisted Settings]]
