@@ -27,6 +27,20 @@ export const Colors = {
   inkScrim: 'rgba(14,15,13,0.55)',
 } as const;
 
+// The design document allows two curves only: Settle for entrances and layout, Drift for
+// state changes. Durations in ms, matching its stated ranges.
+export const Motion = {
+  settleEasing: [0.2, 0.8, 0.2, 1] as const,
+  driftEasing: [0.4, 0, 0.2, 1] as const,
+  settle: 320,
+  drift: 220,
+  reveal: 480,
+  rule: 240,
+  stagger: 40,
+  rise: 12,
+  digitDrift: 24,
+} as const;
+
 export const TintRgb = {
   gain: '127,179,163',
   loss: '201,138,107',
