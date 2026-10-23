@@ -9,6 +9,7 @@ import { SegmentedControl } from '@/components/native/segmented-control';
 import { AssetClassColors, Colors } from '@/constants/theme';
 import type { AssetClass } from '@/data/types';
 import { formatCurrency, formatNumber, formatPercent, formatSignedCurrency } from '@/lib/money';
+import { useFigureMask } from '@/lib/privacy-blur';
 import {
   useAllocation,
   useNetWorth,
@@ -117,6 +118,7 @@ export default function NativeHome() {
   const decimalAt = hero.lastIndexOf('.');
   const heroWhole = decimalAt >= 0 ? hero.slice(0, decimalAt) : hero;
   const heroCents = decimalAt >= 0 ? hero.slice(decimalAt) : '';
+  const figures = useFigureMask();
 
   const allocation = useMemo(
     () =>
@@ -153,10 +155,23 @@ export default function NativeHome() {
 
         <View style={styles.heroCard}>
           <Text style={styles.heroLabel}>Total · Updated 9:12 AM</Text>
-          <Text style={styles.heroValue}>
-            {heroWhole}
-            <Text style={styles.heroCents}>{heroCents}</Text>
-          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Total ${figures.hidden ? 'hidden' : hero}`}
+            accessibilityHint={figures.accessibilityHint}
+            onPress={figures.onPress}
+            onLongPress={figures.onLongPress}>
+            <Text style={styles.heroValue}>
+              {figures.hidden ? (
+                figures.mask(hero)
+              ) : (
+                <>
+                  {heroWhole}
+                  <Text style={styles.heroCents}>{heroCents}</Text>
+                </>
+              )}
+            </Text>
+          </Pressable>
           <View style={styles.chips}>
             <View style={[styles.chip, monthGain ? styles.gainChip : styles.lossChip]}>
               <Text style={[styles.chipText, monthGain ? styles.gainText : styles.lossText]}>

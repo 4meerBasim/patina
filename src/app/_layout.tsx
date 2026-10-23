@@ -7,6 +7,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Colors, FontFiles, Fonts } from '@/constants/theme';
 import { BiometricGate } from '@/lib/biometric-gate';
+import { PrivacyBlurGate } from '@/lib/privacy-blur';
 import { useHydrateStore } from '@/store';
 
 SplashScreen.preventAutoHideAsync();
@@ -43,9 +44,11 @@ export default function RootLayout() {
     <ThemeProvider value={theme}>
       <StatusBar style="light" />
       <BiometricGate>
-        <Stack
-          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.ink } }}
-        />
+        <PrivacyBlurGate>
+          <Stack
+            screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.ink } }}
+          />
+        </PrivacyBlurGate>
       </BiometricGate>
     </ThemeProvider>
   );

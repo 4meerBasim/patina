@@ -24,6 +24,7 @@ export const Colors = {
   lossTint: 'rgba(201,138,107,0.16)',
   brassTint: 'rgba(201,169,97,0.18)',
   shadow: 'rgba(0,0,0,0.3)',
+  inkScrim: 'rgba(14,15,13,0.55)',
 } as const;
 
 export const TintRgb = {
