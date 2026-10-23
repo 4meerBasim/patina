@@ -1,4 +1,14 @@
-import { ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { router } from 'expo-router';
+import { useCallback } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { Glass } from '@/components/native/glass';
@@ -48,6 +58,7 @@ function GoalCard({
   status,
   statusColor,
   style,
+  onPress,
 }: {
   percent: string;
   dashLength: number;
@@ -56,9 +67,14 @@ function GoalCard({
   status: string;
   statusColor: string;
   style?: StyleProp<ViewStyle>;
+  onPress: () => void;
 }) {
   return (
-    <View style={[styles.card, style]}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}, ${percent}, ${status}`}
+      style={[styles.card, style]}
+      onPress={onPress}>
       <View style={styles.ring}>
         <Svg width={84} height={84} viewBox="0 0 84 84">
           <Circle cx={42} cy={42} r={36} fill="none" stroke={Colors.hairline} strokeWidth={10} />
@@ -92,31 +108,38 @@ function GoalCard({
           strokeLinecap="round"
         />
       </Svg>
-    </View>
+    </Pressable>
   );
 }
 
 export default function NativeGoals() {
   const settings = useSettings();
   const goals = useGoalProgress();
+  const openGoal = useCallback(
+    (id: string) => router.push({ pathname: '/native/goal', params: { id } }),
+    [],
+  );
+  const newGoal = useCallback(() => router.push('/native/goal'), []);
 
   return (
     <View style={styles.root}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.largeTitle}>Goals</Text>
-          <Glass radius={22} style={styles.addPill}>
-            <Svg
-              width={20}
-              height={20}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke={Colors.brass}
-              strokeWidth={2.2}
-              strokeLinecap="round">
-              <Path d="M12 5v14M5 12h14" />
-            </Svg>
-          </Glass>
+          <Pressable accessibilityRole="button" accessibilityLabel="New goal" onPress={newGoal}>
+            <Glass radius={22} style={styles.addPill}>
+              <Svg
+                width={20}
+                height={20}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={Colors.brass}
+                strokeWidth={2.2}
+                strokeLinecap="round">
+                <Path d="M12 5v14M5 12h14" />
+              </Svg>
+            </Glass>
+          </Pressable>
         </View>
 
         {goals.map((progress, index) => (
@@ -132,6 +155,7 @@ export default function NativeGoals() {
             status={statusText(progress)}
             statusColor={PACE_COLOR[progress.pace]}
             style={index === 0 ? styles.firstCard : styles.nextCard}
+            onPress={() => openGoal(progress.goal.id)}
           />
         ))}
       </ScrollView>

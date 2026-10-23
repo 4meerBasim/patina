@@ -221,6 +221,7 @@ function EnglishHome() {
   const openAllocation = useCallback(() => router.push('/editorial/allocation'), []);
   const openActivity = useCallback(() => router.push('/editorial/activity'), []);
   const openPerformance = useCallback(() => router.push('/editorial/performance'), []);
+  const openDividends = useCallback(() => router.push('/editorial/dividends'), []);
 
   const signed0 = (value: number) =>
     formatSignedCurrency(value, baseCurrency, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -351,7 +352,11 @@ function EnglishHome() {
 
       <View>
         <Caption style={styles.sectionCaption}>Recent</Caption>
-        <Pressable accessibilityRole="button" style={styles.recentRow} onPress={openActivity}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Dividend income"
+          style={styles.recentRow}
+          onPress={openDividends}>
           <Text style={styles.recentText}>Dividend · {symbolOf(dividend?.holdingId ?? null)}</Text>
           <Text style={styles.recentText}>
             {dividend
