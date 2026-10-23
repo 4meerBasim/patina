@@ -245,6 +245,13 @@ export default function HoldingScreen() {
       valueColor: position.realisedGain >= 0 ? Colors.verdigris : Colors.copper,
     });
   }
+  if (position && position.unmatchedSellQuantity > 0) {
+    rows.push({
+      label: 'Sold without a purchase',
+      value: `${formatNumber(position.unmatchedSellQuantity)} units`,
+      valueColor: Colors.copper,
+    });
+  }
   if (
     holding.currency !== baseCurrency &&
     position?.marketGain != null &&

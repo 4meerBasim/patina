@@ -183,6 +183,14 @@ export default function NativeHolding() {
         color: position.realisedGain >= 0 ? Colors.verdigris : Colors.copper,
       });
     }
+    if (position.unmatchedSellQuantity > 0) {
+      rows.push({
+        key: 'unmatched',
+        label: 'Sold without a purchase',
+        value: `${formatNumber(position.unmatchedSellQuantity)} units`,
+        color: Colors.copper,
+      });
+    }
     if (isForeign && position.marketGain != null) {
       rows.push({
         key: 'market',

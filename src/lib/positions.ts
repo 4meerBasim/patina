@@ -21,6 +21,7 @@ export type HoldingPosition = {
   unrealisedGain: number | null;
   unrealisedPercent: number | null;
   realisedGain: number;
+  unmatchedSellQuantity: number;
   marketGain: number | null;
   currencyGain: number | null;
 };
@@ -67,14 +68,19 @@ function groupBy<T>(items: T[], keyOf: (item: T) => string): Map<string, T[]> {
 }
 
 // FIFO realised gain in the holding's native currency: replay every sell against
-// the lots in acquisition order, matching proceeds to the cost of units consumed.
-function realisedNative(lots: Lot[], sells: Transaction[]): number {
+// the lots in acquisition order, matching proceeds to the cost of units consumed. Units
+// no lot can cover have no known cost, so they are counted rather than priced at zero.
+function realisedNative(
+  lots: Lot[],
+  sells: Transaction[],
+): { realised: number; unmatched: number } {
   const queue = [...lots]
     .sort((a, b) => Date.parse(a.acquiredAt) - Date.parse(b.acquiredAt))
     .map((lot) => ({ remaining: lot.quantity, cost: lot.costPerUnit }));
   const ordered = [...sells].sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
 
   let realised = 0;
+  let unmatched = 0;
   for (const sell of ordered) {
     let quantity = sell.quantity ?? 0;
     if (quantity <= 0) continue;
@@ -87,8 +93,9 @@ function realisedNative(lots: Lot[], sells: Transaction[]): number {
       lot.remaining -= consumed;
       quantity -= consumed;
     }
+    unmatched += quantity;
   }
-  return realised;
+  return { realised, unmatched };
 }
 
 export function computePositions(input: PositionsInput): HoldingPosition[] {
@@ -110,9 +117,9 @@ export function computePositions(input: PositionsInput): HoldingPosition[] {
 
     const holdingLots = lotsByHolding.get(holding.id) ?? [];
     const holdingSells = sellsByHolding.get(holding.id) ?? [];
-    const realisedGain = roundCents(
-      usdToBase(realisedNative(holdingLots, holdingSells) / nowRate),
-    );
+    const sold = realisedNative(holdingLots, holdingSells);
+    const unmatchedSellQuantity = sold.unmatched;
+    const realisedGain = roundCents(usdToBase(sold.realised / nowRate));
 
     if (holdingLots.length === 0) {
       return {
@@ -127,6 +134,7 @@ export function computePositions(input: PositionsInput): HoldingPosition[] {
         unrealisedGain: null,
         unrealisedPercent: null,
         realisedGain,
+        unmatchedSellQuantity,
         marketGain: null,
         currencyGain: null,
       };
@@ -160,6 +168,7 @@ export function computePositions(input: PositionsInput): HoldingPosition[] {
       unrealisedGain,
       unrealisedPercent,
       realisedGain,
+      unmatchedSellQuantity,
       marketGain,
       currencyGain,
     };
