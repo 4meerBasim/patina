@@ -73,9 +73,9 @@ function currencyFractionDigits(
 export function formatCurrency(
   value: number,
   currency: CurrencyCode,
-  options: FormatOptions & { locale?: Locale } = {},
+  options: FormatOptions & { locale?: Locale; unit?: string } = {},
 ): string {
-  const { locale = 'en', ...rest } = options;
+  const { locale = 'en', unit, ...rest } = options;
   const symbol = CURRENCY_SYMBOLS[currency];
   const magnitude = Math.abs(value);
   const { min, max } = currencyFractionDigits(magnitude, rest);
@@ -84,8 +84,51 @@ export function formatCurrency(
     minimumFractionDigits: min,
     maximumFractionDigits: max,
   });
-  const body = locale === 'ar' ? `${digits} ${symbol}` : `${symbol}${digits}`;
+  // A unit sits with the digits, inside the symbol: $1.28M, and ١٫٢٨ مليون $ in Arabic.
+  const figure = unit ? (locale === 'ar' ? `${digits} ${unit}` : `${digits}${unit}`) : digits;
+  const body = locale === 'ar' ? `${figure} ${symbol}` : `${symbol}${figure}`;
   return isNegative(value, digits) ? `${MINUS}${body}` : body;
+}
+
+const COMPACT_UNITS = [
+  { scale: 1e12, latin: 'T', arabic: 'تريليون' },
+  { scale: 1e9, latin: 'B', arabic: 'مليار' },
+  { scale: 1e6, latin: 'M', arabic: 'مليون' },
+] as const;
+
+function compactUnitFor(value: number) {
+  return COMPACT_UNITS.find((entry) => Math.abs(value) >= entry.scale);
+}
+
+// What a figure becomes when the text size has grown past the point where the full number
+// fits. Below a million there is nothing to gain, so the figure is left alone.
+export function formatCompactNumber(
+  value: number,
+  options: FormatOptions & { locale?: Locale } = {},
+): string {
+  const unit = compactUnitFor(value);
+  if (!unit) return formatNumber(value, options);
+  const digits = formatNumber(value / unit.scale, {
+    ...options,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return options.locale === 'ar' ? `${digits} ${unit.arabic}` : `${digits}${unit.latin}`;
+}
+
+export function formatCompactCurrency(
+  value: number,
+  currency: CurrencyCode,
+  options: FormatOptions & { locale?: Locale } = {},
+): string {
+  const unit = compactUnitFor(value);
+  if (!unit) return formatCurrency(value, currency, options);
+  return formatCurrency(value / unit.scale, currency, {
+    ...options,
+    unit: options.locale === 'ar' ? unit.arabic : unit.latin,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function formatSignedCurrency(

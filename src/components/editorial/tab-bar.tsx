@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { DirectionView } from '@/components/editorial/direction-view';
 import { useLocale } from '@/components/editorial/locale';
-import { Colors } from '@/constants/theme';
+import { Colors, Fonts, TypeCap } from '@/constants/theme';
+import { useIsLargeType } from '@/lib/type-scale';
 
 const labels: Record<string, string> = {
   index: 'Home',
@@ -39,6 +40,7 @@ function TabIcon({ name, color }: { name: string; color: string }) {
 
 export function EditorialTabBar({ state, navigation }: BottomTabBarProps) {
   const { locale } = useLocale();
+  const isLargeType = useIsLargeType();
 
   const tabs = state.routes.map((route, index) => {
     const isFocused = state.index === index;
@@ -57,8 +59,16 @@ export function EditorialTabBar({ state, navigation }: BottomTabBarProps) {
         accessibilityLabel={labels[route.name]}
         accessibilityState={{ selected: isFocused }}
         hitSlop={10}
+        style={styles.tab}
         onPress={onPress}>
         <TabIcon name={route.name} color={isFocused ? Colors.bone : Colors.slate} />
+        {isLargeType ? (
+          <Text
+            style={[styles.label, { color: isFocused ? Colors.bone : Colors.slate }]}
+            maxFontSizeMultiplier={TypeCap.heading}>
+            {labels[route.name]}
+          </Text>
+        ) : null}
       </Pressable>
     );
   });
@@ -94,6 +104,16 @@ export function EditorialTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
+  tab: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  label: {
+    fontFamily: Fonts.manropeMedium,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.44,
+  },
   bar: {
     height: 99,
     borderTopWidth: 1,

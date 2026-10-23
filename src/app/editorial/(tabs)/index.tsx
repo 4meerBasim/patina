@@ -17,15 +17,18 @@ import { BrassRule, Reveal, useReveal } from '@/components/reveal';
 import { DirectionView } from '@/components/editorial/direction-view';
 import { useLocale } from '@/components/editorial/locale';
 import { PeriodSelector } from '@/components/editorial/period-selector';
-import { AssetClassColors, Colors, Fonts, Motion } from '@/constants/theme';
+import { AssetClassColors, Colors, Fonts, Motion, TypeCap } from '@/constants/theme';
 import type { AssetClass, CurrencyCode } from '@/data/types';
 import {
+  formatCompactCurrency,
+  formatCompactNumber,
   formatCurrency,
   formatNumber,
   formatPercent,
   formatSignedCurrency,
 } from '@/lib/money';
 import { useFigureMask } from '@/lib/privacy-blur';
+import { useCompactHero } from '@/lib/type-scale';
 import type { Recap } from '@/lib/recap';
 import {
   useAllocation,
@@ -204,12 +207,17 @@ function EnglishHome() {
   const recap = useRecap(PERIOD_DAYS_MAP[period]);
   const movers = useTopMovers(3);
 
-  const hero = formatCurrency(netWorth.total, baseCurrency, {
-    locale: 'en',
-    numeralSystem: 'latin',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const compactHero = useCompactHero();
+  const hero = (compactHero ? formatCompactCurrency : formatCurrency)(
+    netWorth.total,
+    baseCurrency,
+    {
+      locale: 'en',
+      numeralSystem: 'latin',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    },
+  );
   const figures = useFigureMask();
   const revealing = useReveal();
 
@@ -259,13 +267,16 @@ function EnglishHome() {
             onPress={figures.onPress}
             onLongPress={figures.onLongPress}>
             {figures.hidden ? (
-              <Text style={styles.hero}>{figures.mask(hero)}</Text>
+              <Text style={styles.hero} maxFontSizeMultiplier={TypeCap.hero}>
+                {figures.mask(hero)}
+              </Text>
             ) : (
               <DriftingFigure
                 value={hero}
                 amount={netWorth.total}
                 style={styles.hero}
                 tailStyle={styles.heroDecimal}
+                maxFontSizeMultiplier={TypeCap.hero}
                 accessibilityLabel={`Net worth ${hero}`}
               />
             )}
@@ -429,11 +440,14 @@ function ArabicHome() {
   const recap = useRecap(PERIOD_DAYS_MAP[period]);
   const movers = useTopMovers(3);
 
-  const heroNumber = formatNumber(netWorth.total, {
-    numeralSystem: 'arabic',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const compactHero = useCompactHero();
+  const heroNumber = compactHero
+    ? formatCompactNumber(netWorth.total, { locale: 'ar', numeralSystem: 'arabic' })
+    : formatNumber(netWorth.total, {
+        numeralSystem: 'arabic',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
   const figures = useFigureMask();
   const revealing = useReveal();
   const heroCurrency = formatCurrency(netWorth.total, baseCurrency, {
@@ -497,7 +511,9 @@ function ArabicHome() {
               onPress={figures.onPress}
               onLongPress={figures.onLongPress}>
               {figures.hidden ? (
-                <Text style={styles.arHero}>{`⁦${figures.mask(heroNumber)}⁩`}</Text>
+                <Text style={styles.arHero} maxFontSizeMultiplier={TypeCap.hero}>
+                  {`⁦${figures.mask(heroNumber)}⁩`}
+                </Text>
               ) : (
                 <View style={styles.arHeroRow}>
                   <DriftingFigure
@@ -505,6 +521,7 @@ function ArabicHome() {
                     amount={netWorth.total}
                     style={styles.arHero}
                     tailStyle={styles.heroDecimal}
+                    maxFontSizeMultiplier={TypeCap.hero}
                     accessibilityLabel={`صافي الثروة ${heroNumber}`}
                   />
                   <Text style={styles.arHeroCurrency}>{symbol}</Text>

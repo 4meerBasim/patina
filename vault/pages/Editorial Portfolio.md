@@ -5,6 +5,6 @@ Summary: Design screen 1d: total, allocation bar and asset-class rows, with Stoc
 
 ## Related
 - Connects to: [[Editorial Home]], [[Editorial Goals]], [[Editorial Notes]], [[Editorial Add Holding]], [[Editorial Allocation]], [[Editorial Holding Detail]], [[Editorial Goal Detail]]
-- Features: [[Portfolio Stocks Expand and Collapse]], [[Editorial Tab Bar]], [[Design Tokens and Fonts]], [[Domain Data Model]], [[Local SQLite Persistence]], [[App State Store]], [[Offline Price Provider]], [[Demo Seed Data]]
+- Features: [[Portfolio Stocks Expand and Collapse]], [[Editorial Tab Bar]], [[Design Tokens and Fonts]], [[Domain Data Model]], [[Local SQLite Persistence]], [[App State Store]], [[Offline Price Provider]], [[Demo Seed Data]], [[Dynamic Type Caps]]
 - Bugs: none known
 - Enhancements: [[Light Mode]], [[Real Market Price Provider]]

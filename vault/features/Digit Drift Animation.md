@@ -18,6 +18,6 @@ Wired at the three places the document names: the editorial home hero in both En
 The fourth site, the holding chart's scrub header, arrives with [[Holding Chart Scrubbing and Markers]] — the component is what that header will cross-fade through. Masked figures skip the drift entirely: there is nothing to animate behind the bullets of [[Privacy Blur on Launch]].
 
 ## Related
-- Feature: [[Money and Numeral Formatting]], [[Design Tokens and Fonts]], [[Add Holding Live Preview]], [[Newsreader Hero on Native Home]], [[Privacy Blur on Launch]], [[Arabic RTL Home]]
+- Feature: [[Money and Numeral Formatting]], [[Design Tokens and Fonts]], [[Add Holding Live Preview]], [[Newsreader Hero on Native Home]], [[Privacy Blur on Launch]], [[Arabic RTL Home]], [[Dynamic Type Caps]]
 - Page: [[Editorial Home]], [[Native Home]], [[Editorial Add Holding]], [[Editorial Holding Detail]]
 - Enhancement: [[Holding Chart Scrubbing and Markers]], [[Net Worth Reveal Animation]], [[Conversational Add Holding Steps]]

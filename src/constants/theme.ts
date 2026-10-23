@@ -41,6 +41,17 @@ export const Motion = {
   digitDrift: 24,
 } as const;
 
+// Dynamic Type caps per role, from the design document: body, secondary, caption and data
+// scale all the way; titles and headings to 1.6x; the hero and display figures stop at 1.3x
+// and abbreviate instead. LARGE is the scale at which layouts respond rather than only grow.
+export const TypeCap = {
+  title: 1.6,
+  heading: 1.6,
+  hero: 1.3,
+  display: 1.3,
+  large: 1.2,
+} as const;
+
 export const TintRgb = {
   gain: '127,179,163',
   loss: '201,138,107',
