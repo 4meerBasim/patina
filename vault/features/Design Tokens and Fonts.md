@@ -10,6 +10,6 @@ The editorial primitives built on these tokens: `src/components/editorial/captio
 
 ## Related
 - Page: [[Style Chooser]], [[Editorial Onboarding]], [[Editorial Account Linking]], [[Editorial Home]], [[Editorial Portfolio]], [[Editorial Holding Detail]], [[Editorial Add Holding]], [[Editorial Performance]], [[Editorial Allocation]], [[Editorial Goals]], [[Editorial Notes]], [[Editorial Activity]], [[Editorial Settings]], [[Native Home]], [[Native Portfolio]], [[Native Holding Detail]], [[Native Add Holding]], [[Native Goals]], [[Native Settings]], [[Editorial Dividends]], [[Editorial Goal Detail]]
-- Features: [[Arabic RTL Home]]
+- Features: [[Arabic RTL Home]], [[Privacy Blur on Launch]]
 - Enhancements: [[Light Mode]], [[Dynamic Type Caps]]
 - Bugs: none known

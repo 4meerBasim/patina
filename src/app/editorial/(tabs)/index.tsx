@@ -23,6 +23,7 @@ import {
   formatPercent,
   formatSignedCurrency,
 } from '@/lib/money';
+import { useFigureMask } from '@/lib/privacy-blur';
 import type { Recap } from '@/lib/recap';
 import {
   useAllocation,
@@ -207,6 +208,7 @@ function EnglishHome() {
   const dot = hero.lastIndexOf('.');
   const heroWhole = hero.slice(0, dot);
   const heroFraction = hero.slice(dot);
+  const figures = useFigureMask();
 
   const concentration = notes.find((note) => note.kind === 'concentration');
   const symbolOf = (holdingId: string | null) =>
@@ -246,10 +248,23 @@ function EnglishHome() {
           <Avatar label="R" />
         </View>
         <View style={styles.brassRule} />
-        <Text style={styles.hero}>
-          {heroWhole}
-          <Text style={styles.heroDecimal}>{heroFraction}</Text>
-        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Net worth ${figures.hidden ? 'hidden' : hero}`}
+          accessibilityHint={figures.accessibilityHint}
+          onPress={figures.onPress}
+          onLongPress={figures.onLongPress}>
+          <Text style={styles.hero}>
+            {figures.hidden ? (
+              figures.mask(hero)
+            ) : (
+              <>
+                {heroWhole}
+                <Text style={styles.heroDecimal}>{heroFraction}</Text>
+              </>
+            )}
+          </Text>
+        </Pressable>
         <View style={styles.deltas}>
           <Text style={[styles.delta, periodDelta.amount >= 0 ? styles.gain : styles.loss]}>
             {deltaEn(periodDelta, baseCurrency, 'past 30 days')}
@@ -416,6 +431,7 @@ function ArabicHome() {
   const sep = heroNumber.lastIndexOf('٫');
   const heroWhole = heroNumber.slice(0, sep);
   const heroFraction = heroNumber.slice(sep);
+  const figures = useFigureMask();
   const heroCurrency = formatCurrency(netWorth.total, baseCurrency, {
     locale: 'ar',
     numeralSystem: 'arabic',
@@ -469,13 +485,26 @@ function ArabicHome() {
             <Avatar label="ر" />
           </View>
           <View style={styles.brassRule} />
-          <Text style={styles.arHero}>
-            {'⁦'}
-            {heroWhole}
-            <Text style={styles.heroDecimal}>{heroFraction}</Text>{' '}
-            <Text style={styles.arHeroCurrency}>{symbol}</Text>
-            {'⁩'}
-          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="صافي الثروة"
+            accessibilityHint={figures.accessibilityHint}
+            onPress={figures.onPress}
+            onLongPress={figures.onLongPress}>
+            <Text style={styles.arHero}>
+              {'⁦'}
+              {figures.hidden ? (
+                figures.mask(heroNumber)
+              ) : (
+                <>
+                  {heroWhole}
+                  <Text style={styles.heroDecimal}>{heroFraction}</Text>{' '}
+                  <Text style={styles.arHeroCurrency}>{symbol}</Text>
+                </>
+              )}
+              {'⁩'}
+            </Text>
+          </Pressable>
           <View style={styles.deltas}>
             <Text style={[styles.arDelta, periodDelta.amount >= 0 ? styles.gain : styles.loss]}>
               {deltaAr(periodDelta, baseCurrency, periodLabel)}
