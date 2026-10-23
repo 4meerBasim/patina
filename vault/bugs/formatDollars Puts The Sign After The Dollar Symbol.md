@@ -1,6 +1,6 @@
 # formatDollars Puts The Sign After The Dollar Symbol
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/amount.ts:21`
 Summary: `formatDollars` prepends `$` to a string that `toLocaleString` has already signed, so a negative renders as `$-500` instead of `-$500`.
 
@@ -28,7 +28,9 @@ The rest of the codebase does it the other way. `src/lib/money.ts:73` returns `$
 
 That makes it a live but low-severity defect: reachable, visible in the preview line, affecting one screen, with no write behind it. The remaining value of fixing it is consistency — `money.ts` and `amount.ts` should not format the same quantity two different ways.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR — ideally one PR covering all four `formatDollars` defects, since the function is nine lines long and they all live in the same expression.
+## Fix
+
+Fixed on `fix/money-formatters`. `formatDollars` formats the magnitude and prepends the sign to the whole body, so the sign sits outside the symbol: `formatDollars(-5)` is `−$5` and `formatDollars(-1234.56)` is `−$1,234.56`. Sign placement now matches `money.ts`, and the sign character does too.
 
 ## Related
 - Feature: [[Money and Numeral Formatting]], [[Add Holding Live Preview]]

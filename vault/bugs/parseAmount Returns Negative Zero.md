@@ -1,6 +1,6 @@
 # parseAmount Returns Negative Zero
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/amount.ts:15`
 Summary: `parseAmount('-0')` returns `-0` rather than `0`, and that sign survives into the rendered figure.
 
@@ -20,7 +20,9 @@ So the sign is rendered, not swallowed. `src/lib/__tests__/amount.test.ts:180` i
 
 Two things keep this minor rather than serious. The quantity field is `keyboardType="decimal-pad"`, so a literal `-0` needs a paste or a keyboard that offers a minus. And `formatDollars` produces `$-0` from any small negative anyway — `formatDollars(-0.004)` is also `'$-0'` — so fixing `parseAmount` alone would not remove the rendering, which is why [[formatDollars Renders Negative Zero As $-0]] is tracked separately. This note is the upstream half: one expression, collapsing zero to positive zero before returning.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note.
+## Fix
+
+Fixed on `fix/money-formatters`. `parseAmount` returns `value === 0 ? 0 : value`, so a negated zero collapses to positive zero. `parseAmount('-0')` is `0`. The rendering half is fixed in the same change — [[formatDollars Renders Negative Zero As $-0]] — since neither one alone removes the `$-0` from the preview line.
 
 ## Related
 - Feature: [[Money and Numeral Formatting]], [[Add Holding Live Preview]]

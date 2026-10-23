@@ -1,6 +1,6 @@
 # formatDollars Renders Negative Zero As $-0
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/amount.ts:21`
 Summary: `toLocaleString` keeps the sign of negative zero, so `formatDollars` renders `$-0`, and any negative value below half a cent produces the same string.
 
@@ -33,7 +33,9 @@ Two things bound the severity. Both fields are `keyboardType="decimal-pad"` (`sr
 
 Fixing `parseAmount` alone would not remove the rendering, since `formatDollars(-0.004)` produces `$-0` without any help from the parser. `formatDollars` has to normalise the sign of its own rounded zero. The `money.ts` formatters get the negative-zero case right — `value < 0` is false for `-0` — but fail the sub-cent case for the opposite reason, which is [[Negative Sub-Cent Renders As Minus Zero]].
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR.
+## Fix
+
+Fixed on `fix/money-formatters`. `formatDollars` formats `Math.abs(amount)` and adds the sign only when the rendered digits contain a non-zero digit, so `toLocaleString` never sees a negative and cannot carry a sign. `formatDollars(-0)` and `formatDollars(-0.004)` both give `$0`. The upstream half is fixed too — [[parseAmount Returns Negative Zero]] — so the add-holding preview can no longer read `That's $-0`.
 
 ## Related
 - Feature: [[Money and Numeral Formatting]], [[Add Holding Live Preview]]

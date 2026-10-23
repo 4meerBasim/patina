@@ -1,6 +1,6 @@
 # formatDollars Signs With Ascii Hyphen While money.ts Uses U+2212
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/amount.ts:21`
 Summary: `formatDollars` lets `toLocaleString` supply the sign, which is U+002D, while every `money.ts` formatter writes U+2212, so negatives look different depending on which screen renders them.
 
@@ -26,7 +26,9 @@ The practical cost is already recorded in the other direction. `parseAmount` str
 
 Live but cosmetic. `formatDollars` renders on one screen only, the editorial add-holding sheet (`src/app/editorial/add.tsx:188` and `:198`), and a negative total there requires a pasted minus since both fields are `keyboardType="decimal-pad"`. No user-visible figure produced by `money.ts` and one produced by `amount.ts` currently appear side by side.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR, best combined with the other three `formatDollars` defects and with the `parseAmount` counterpart.
+## Fix
+
+Fixed on `fix/money-formatters`. `MINUS` is now declared once, in `src/lib/amount.ts`, and `money.ts` imports it from there instead of keeping its own copy — `amount.ts` is the leaf module, so the dependency runs the right way and there is no cycle. `formatDollars` no longer lets `toLocaleString` supply the sign; it formats the magnitude and prefixes `MINUS` itself. `formatDollars(-5)` is `−$5`, with U+2212 at index 0 and `$` at index 1, which is what `money.test.ts` already asserted for `formatCurrency`. The parser counterpart landed in the same change — see [[parseAmount Cannot Read The U+2212 Sign money.ts Writes]] — so standardising on U+2212 does not strand a pasted figure.
 
 ## Related
 - Feature: [[Money and Numeral Formatting]], [[Add Holding Live Preview]]

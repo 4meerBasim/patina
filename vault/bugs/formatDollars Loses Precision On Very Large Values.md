@@ -1,6 +1,6 @@
 # formatDollars Loses Precision On Very Large Values
 
-Status: not-fixed
+Status: fixed
 Found: `src/lib/amount.ts:19`
 Summary: `formatDollars` multiplies by 100 before rounding, and above about 90 trillion that product exceeds the exact-integer range of a double, so the formatted figure can differ from the value passed in.
 
@@ -20,7 +20,9 @@ The loss is not uniform above the threshold. Sampling 5,000 random integers per 
 
 Latent for this app's data, and the threshold is the reason. `formatDollars` renders only on the editorial add-holding sheet (`src/app/editorial/add.tsx:188` and `:198`), where the value is quantity × price typed by the user. Reaching 9 × 10¹³ there takes a deliberately absurd entry, and the demo portfolio is around 1.28 million. Named trigger: a quantity or price entry large enough that their product crosses the threshold, or any future reuse of `formatDollars` for an aggregate figure.
 
-Not fixed in the harness PR, which carries no behaviour changes. The test asserts the current behaviour and names this note. Per `foundation/github.md` the fix changes behaviour and cannot ride on a `chore/` branch; it needs its own `fix/` PR.
+## Fix
+
+Fixed on `fix/money-formatters`. The `Math.round(amount * 100) / 100` pre-multiply is gone; `formatDollars` hands the magnitude straight to `toLocaleString` and lets it do the rounding, the same way `formatNumber` always has. `formatDollars(1e21)` is `$1,000,000,000,000,000,000,000` with no exponential notation. The digit count is chosen by probing the formatted string for a decimal separator rather than by testing the value for integrality, so nothing re-introduces a multiply.
 
 ## Related
 - Feature: [[Money and Numeral Formatting]], [[Add Holding Live Preview]]
