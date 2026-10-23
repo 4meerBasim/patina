@@ -53,7 +53,7 @@ The `computeSnapshot(todayIso(), …)` call straight after the transaction (`dat
 
 "Import data" is a labelled action on both settings screens (`src/app/editorial/settings.tsx:141`, `src/app/native/settings.tsx:224`, via `src/lib/use-data-management.ts:33`), and both routes are navigable. Only the editorial shell closes the loop, though: `timeWeightedReturn` is imported by exactly one screen, `src/app/editorial/performance.tsx`, which reads `useSnapshots()` at `:40`, maps `totalNetWorth` into valuations at `:63` and renders the result at `:142`. The native shell has no performance screen, so importing from native settings corrupts the shared store without displaying the −100%.
 
-[[Extract The Backup Codec For Testing]] already treats a hand-edited backup as a real scenario; this is the same input class.
+[[Tested Backup Codec]] already treats a hand-edited backup as a real scenario; this is the same input class.
 
 **Planned: a network price provider.** The provider chain cannot trip it today. `createSimulatedPriceProvider` (`src/data/providers/price-provider.ts:23`, wired at `providers/index.ts:28`) returns a quote for *any* `instrumentId`, its output goes into the in-memory `livePrices` map at `data-store.ts:331` and never reaches the `priceQuotes` table `holdingValue` reads, and `seed.ts` covers all 21 catalogue instruments — the 14 held plus the 7 in `extraPrices` at `seed.ts:149`. Once quotes come from a network, a delisted, renamed, rate-limited or uncovered symbol produces nothing and the fallback fires. See [[Real Market Price Provider]].
 
