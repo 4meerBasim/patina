@@ -7,4 +7,4 @@ Summary: Design screen 1l: profile, linked accounts, a Language row that toggles
 - Connects to: [[Editorial Home]]
 - Features: [[Arabic RTL Home]], [[Design Tokens and Fonts]], [[Full Export And Delete]], [[Money and Numeral Formatting]], [[Persisted Settings]], [[Seeded FX Rates]], [[Settings Toggles]], [[Biometric App Lock]]
 - Bugs: none known
-- Enhancements: [[Tested Backup Codec]], [[Light Mode]], [[Network FX Rates]], [[Privacy Blur on Launch]]
+- Enhancements: [[Tested Backup Codec]], [[Light Mode]], [[Network FX Rates]], [[Privacy Blur on Launch]], [[Test Formatters Against Hermes]]
