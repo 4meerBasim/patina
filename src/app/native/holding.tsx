@@ -336,19 +336,24 @@ export default function NativeHolding() {
           {yoc ? (
             <>
               <Text style={styles.sectionHeader}>Income</Text>
-              <GroupedCard>
-                <KeyValueRow
-                  label="Yield on cost"
-                  value={formatPercent(yoc.yieldOnCost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  valueColor={Colors.bone}
-                  hasSeparator
-                />
-                <KeyValueRow
-                  label="Trailing 12-mo income"
-                  value={formatCurrency(yoc.trailingIncome, baseCurrency)}
-                  hasSeparator={false}
-                />
-              </GroupedCard>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Dividend income"
+                onPress={() => router.push('/native/dividends')}>
+                <GroupedCard>
+                  <KeyValueRow
+                    label="Yield on cost"
+                    value={formatPercent(yoc.yieldOnCost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    valueColor={Colors.bone}
+                    hasSeparator
+                  />
+                  <KeyValueRow
+                    label="Trailing 12-mo income"
+                    value={formatCurrency(yoc.trailingIncome, baseCurrency)}
+                    hasSeparator={false}
+                  />
+                </GroupedCard>
+              </Pressable>
             </>
           ) : null}
 

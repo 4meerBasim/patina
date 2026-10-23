@@ -6,5 +6,5 @@ Summary: the native-style goal editor: field rows for name, target and monthly, 
 ## Related
 - Connects to: [[Native Goals]], [[Native Portfolio]]
 - Features: [[Goals With Linked Holdings]], [[Native Glass Surfaces]], [[Money and Numeral Formatting]]
-- Bugs: [[Four Native Screens Have No Route In]]
+- Bugs: [[Four Finished Screens Have No Route In]]
 - Enhancements: [[Goal Detail with Projection Fan]]

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -6,10 +7,10 @@ import { Switch } from '@/components/native/switch';
 import { Colors } from '@/constants/theme';
 import type { Locale, NumeralSystem } from '@/data/settings';
 import { CURRENCIES } from '@/data/types';
-import { toArabicNumerals } from '@/lib/money';
+import { formatCurrency, toArabicNumerals } from '@/lib/money';
 import { useBiometricSetting } from '@/lib/use-biometric-setting';
 import { useDataManagement } from '@/lib/use-data-management';
-import { useDataActions, useSettings } from '@/store';
+import { useDataActions, useLiabilities, useSettings } from '@/store';
 
 const LOCALE_LABEL: Record<Locale, string> = {
   en: 'English',
@@ -117,6 +118,8 @@ function ActionRow({
 
 export default function NativeSettings() {
   const settings = useSettings();
+  const liabilities = useLiabilities();
+  const owed = liabilities.reduce((sum, liability) => sum + liability.balance, 0);
   const { updateSettings } = useDataActions();
   const { enabled: biometricEnabled, available: biometricAvailable, setEnabled: setBiometricEnabled } =
     useBiometricSetting();
@@ -189,6 +192,23 @@ export default function NativeSettings() {
             label="Base currency"
             value={settings.baseCurrency}
             onPress={cycleCurrency}
+            hasSeparator={false}
+          />
+        </GroupedCard>
+
+        <Text style={styles.sectionHeader}>Net worth</Text>
+        <GroupedCard>
+          <NavRow
+            label="Liabilities"
+            value={
+              liabilities.length === 0
+                ? 'None'
+                : formatCurrency(owed, settings.baseCurrency, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  })
+            }
+            onPress={() => router.push('/native/liabilities')}
             hasSeparator={false}
           />
         </GroupedCard>

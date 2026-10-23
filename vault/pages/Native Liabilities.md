@@ -6,5 +6,5 @@ Summary: the debts editor: a grouped list of balances with name and amount field
 ## Related
 - Connects to: [[Native Home]], [[Native Settings]]
 - Features: [[Liabilities]], [[Native Glass Surfaces]], [[Money and Numeral Formatting]], [[Persisted Settings]]
-- Bugs: [[Four Native Screens Have No Route In]]
+- Bugs: [[Four Finished Screens Have No Route In]]
 - Enhancements: none

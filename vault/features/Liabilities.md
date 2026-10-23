@@ -9,9 +9,9 @@ Summary: mortgages, loans and cards are held as named balances and subtracted fr
 
 `src/app/native/liabilities.tsx` is the editor: a grouped list of balances with name and balance fields, a delete action per liability, and the caption `Subtracted from your net worth.` The save is gated on a positive balance.
 
-The screen has a back control but nothing in the native shell pushes to it — see [[Four Native Screens Have No Route In]].
+The screen has a back control but nothing in the native shell pushes to it — see [[Four Finished Screens Have No Route In]].
 
 ## Related
 - Feature: [[Domain Data Model]], [[Local SQLite Persistence]], [[Daily Net Worth Snapshots]], [[Money and Numeral Formatting]]
-- Bugs: [[Four Native Screens Have No Route In]]
+- Bugs: [[Four Finished Screens Have No Route In]]
 - Page: [[Native Liabilities]], [[Native Home]], [[Editorial Home]]
