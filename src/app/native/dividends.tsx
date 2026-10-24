@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { memo, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, type ColorValue } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { Glass } from '@/components/native/glass';
@@ -42,7 +42,7 @@ const BarColumn = memo(function BarColumn({
 }: {
   height: number;
   label: string;
-  tint: string;
+  tint: ColorValue;
   accessibilityLabel: string;
 }) {
   return (
@@ -86,7 +86,7 @@ function DividendBars({
   baseCurrency,
 }: {
   months: DividendMonth[];
-  tint: string;
+  tint: ColorValue;
   baseCurrency: CurrencyCode;
 }) {
   const max = months.reduce((value, item) => Math.max(value, item.amount), 0);

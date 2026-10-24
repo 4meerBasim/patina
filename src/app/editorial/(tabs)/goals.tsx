@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { memo, useCallback, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, type ColorValue } from 'react-native';
 
 import { Caption } from '@/components/editorial/caption';
 import { monthAbbrevYear } from '@/components/editorial/months';
@@ -15,7 +15,7 @@ const PACE_WORD: Record<GoalPace, string> = {
   'on-pace': 'on pace',
 };
 
-const PACE_COLOR: Record<GoalPace, string> = {
+const PACE_COLOR: Record<GoalPace, ColorValue> = {
   ahead: Colors.verdigris,
   behind: Colors.copper,
   'on-pace': Colors.stone,
@@ -30,7 +30,7 @@ type GoalCardModel = {
   fillWidth: `${number}%`;
   detailPrefix: string;
   paceWord: string;
-  paceColor: string;
+  paceColor: ColorValue;
   fundedBy: string | null;
 };
 

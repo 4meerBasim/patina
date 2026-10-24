@@ -1,4 +1,8 @@
-export const Colors = {
+import { DynamicColorIOS, Platform, type ColorValue } from 'react-native';
+
+// The two palettes the design document specifies. Light is Paper rather than white: the
+// app is meant to read like printed stock in either appearance.
+export const DarkPalette = {
   ink: '#0E0F0D',
   surface1: '#161714',
   surface2: '#1E201C',
@@ -14,6 +18,45 @@ export const Colors = {
   umber: '#8C6A4F',
   verdigrisDim: '#5F8A7E',
   destructive: '#A8654A',
+  inkScrim: 'rgba(14,15,13,0.55)',
+} as const;
+
+export const LightPalette: Record<keyof typeof DarkPalette, string> = {
+  ink: '#F4F1EA',
+  surface1: '#EBE7DE',
+  surface2: '#E2DDD2',
+  hairline: '#D9D4C8',
+  bone: '#1A1A17',
+  ash: '#4A4740',
+  slate: '#6E6B61',
+  disabled: '#9A978D',
+  brass: '#8F7434',
+  verdigris: '#3D7A69',
+  copper: '#A85E3E',
+  stone: '#6E6B61',
+  umber: '#7A5A41',
+  verdigrisDim: '#4E7A6E',
+  destructive: '#8E4F38',
+  inkScrim: 'rgba(244,241,234,0.55)',
+};
+
+// DynamicColorIOS resolves per appearance inside a StyleSheet created at module scope, so
+// the palette can flip without every screen rebuilding its styles. Appearance.setColorScheme
+// is what the in-app picker drives, and iOS resolves these against it. Android has no
+// equivalent that works from a static stylesheet, so it stays on the dark palette.
+function themedPalette(): Record<keyof typeof DarkPalette, ColorValue> {
+  if (Platform.OS !== 'ios') return { ...DarkPalette };
+  const palette = {} as Record<keyof typeof DarkPalette, ColorValue>;
+  for (const token of Object.keys(DarkPalette) as (keyof typeof DarkPalette)[]) {
+    palette[token] = DynamicColorIOS({ dark: DarkPalette[token], light: LightPalette[token] });
+  }
+  return palette;
+}
+
+// Values that are the same in both appearances: translucent furniture, the two pure
+// endpoints, and the tints. These stay plain strings because some are interpolated into
+// boxShadow, which needs a colour it can read.
+const Fixed = {
   black: '#000000',
   white: '#FFFFFF',
   glassFill: 'rgba(120,120,128,0.28)',
@@ -24,8 +67,9 @@ export const Colors = {
   lossTint: 'rgba(201,138,107,0.16)',
   brassTint: 'rgba(201,169,97,0.18)',
   shadow: 'rgba(0,0,0,0.3)',
-  inkScrim: 'rgba(14,15,13,0.55)',
 } as const;
+
+export const Colors = { ...themedPalette(), ...Fixed };
 
 // The design document allows two curves only: Settle for entrances and layout, Drift for
 // state changes. Durations in ms, matching its stated ranges.

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, type ColorValue } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { DirectionView } from '@/components/editorial/direction-view';
@@ -15,7 +15,7 @@ const labels: Record<string, string> = {
   notes: 'Notes',
 };
 
-function TabIcon({ name, color }: { name: string; color: string }) {
+function TabIcon({ name, color }: { name: string; color: ColorValue }) {
   return (
     <Svg
       width={24}

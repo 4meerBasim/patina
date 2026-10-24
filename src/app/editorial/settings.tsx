@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -10,13 +10,10 @@ import Animated, {
 import { Caption } from '@/components/editorial/caption';
 import { useLocale } from '@/components/editorial/locale';
 import { Colors, Fonts } from '@/constants/theme';
+import { appearanceLabel, applyAppearance, nextAppearance } from '@/lib/appearance';
 import { useBiometricSetting } from '@/lib/use-biometric-setting';
 import { useDataManagement } from '@/lib/use-data-management';
 import { useDataActions, useSettings } from '@/store';
-
-function appearanceLabel(appearance: string): string {
-  return appearance.charAt(0).toUpperCase() + appearance.slice(1);
-}
 
 const timing = { duration: 200, easing: Easing.bezier(0.4, 0, 0.2, 1) };
 
@@ -49,6 +46,12 @@ export default function SettingsScreen() {
   const { locale, setLocale } = useLocale();
   const { baseCurrency, appearance, privacyBlur } = useSettings();
   const { updateSettings } = useDataActions();
+  const cycleAppearance = useCallback(() => {
+    const next = nextAppearance(appearance);
+    applyAppearance(next);
+    void updateSettings({ appearance: next });
+  }, [appearance, updateSettings]);
+
   const { enabled: biometricEnabled, available: biometricAvailable, setEnabled: setBiometricEnabled } =
     useBiometricSetting();
   const { exportData, importData, confirmDelete } = useDataManagement();
@@ -102,10 +105,15 @@ export default function SettingsScreen() {
       </View>
 
       <Caption style={styles.sectionCaption}>Appearance & privacy</Caption>
-      <View style={styles.row}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Appearance, ${appearanceLabel(appearance)}`}
+        accessibilityHint="Cycles through dark, light and system"
+        style={styles.row}
+        onPress={cycleAppearance}>
         <Text style={styles.rowLabel}>Appearance</Text>
         <Text style={styles.rowValue}>{appearanceLabel(appearance)}</Text>
-      </View>
+      </Pressable>
       <View style={[styles.row, styles.rowDivided]}>
         <Text style={styles.rowLabel}>Blur figures on launch</Text>
         <Toggle

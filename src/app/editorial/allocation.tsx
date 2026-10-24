@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, type ColorValue } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
 import { Caption } from '@/components/editorial/caption';
@@ -12,7 +12,7 @@ import { useAllocation, useAllocationTargets, useDataActions, useRebalanceHints,
 type ClassMeta = {
   key: AssetClass;
   name: string;
-  color: string;
+  color: ColorValue;
   dashArray: string;
   dashOffset: number;
 };
@@ -44,7 +44,7 @@ const LegendRow = memo(function LegendRow({
   isLast,
   onSelect,
 }: {
-  item: { key: AssetClass; name: string; color: string; actual: number; target: number };
+  item: { key: AssetClass; name: string; color: ColorValue; actual: number; target: number };
   isSelected: boolean;
   isLast: boolean;
   onSelect: (key: AssetClass) => void;

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, type ColorValue } from 'react-native';
 import Svg, { Line, Path, Text as SvgText } from 'react-native-svg';
 
 import { Caption } from '@/components/editorial/caption';
@@ -117,7 +117,7 @@ export default function PerformanceScreen() {
   const changeColor = gain ? Colors.verdigris : Colors.copper;
   const sinceLabel = performance.firstDate ? dayMonthYear(performance.firstDate) : '—';
 
-  const summaryRows: { label: string; value: string; valueColor: string }[] = [
+  const summaryRows: { label: string; value: string; valueColor: ColorValue }[] = [
     { label: 'Start value', value: money0(performance.startValue), valueColor: Colors.bone },
     { label: 'Contributed', value: signed0(performance.contributions), valueColor: Colors.bone },
     {

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, useColorScheme } from 'react-native';
 import Animated, {
   Easing,
   interpolateColor,
@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Colors } from '@/constants/theme';
+import { Colors, DarkPalette, LightPalette } from '@/constants/theme';
 
 type SwitchProps = {
   value: boolean;
@@ -25,8 +25,11 @@ export function Switch({ value, onValueChange, accessibilityLabel }: SwitchProps
     progress.value = withTiming(value ? 1 : 0, timing);
   }, [value, progress]);
 
+  // interpolateColor runs on the UI thread and needs a colour it can parse, which rules
+  // out the appearance-resolved tokens: the brass endpoint comes from the palette directly.
+  const brass = useColorScheme() === 'light' ? LightPalette.brass : DarkPalette.brass;
   const trackStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], [Colors.glassFill, Colors.brass]),
+    backgroundColor: interpolateColor(progress.value, [0, 1], [Colors.glassFill, brass]),
   }));
 
   const knobStyle = useAnimatedStyle(() => ({

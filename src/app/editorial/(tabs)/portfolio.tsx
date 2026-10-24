@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { type ReactNode, memo, useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, type ColorValue } from 'react-native';
 import Svg, { Line, Path } from 'react-native-svg';
 
 import { Caption } from '@/components/editorial/caption';
@@ -41,7 +41,7 @@ function Sparkline({
   hasBaseline = false,
 }: {
   d: string;
-  stroke: string;
+  stroke: ColorValue;
   hasBaseline?: boolean;
 }) {
   return (
@@ -76,7 +76,7 @@ const HoldingRow = memo(function HoldingRow({
   ticker: string;
   value: string;
   subline?: string;
-  sublineColor?: string;
+  sublineColor?: ColorValue;
   sparkline?: ReactNode;
   hasBorder?: boolean;
   onPress: (id: string) => void;
@@ -117,10 +117,10 @@ const ClassRow = memo(function ClassRow({
   isSelected?: boolean;
   name: string;
   detail: string;
-  detailColor: string;
+  detailColor: ColorValue;
   value: string;
   delta: string;
-  deltaColor: string;
+  deltaColor: ColorValue;
   accessibilityState?: { expanded?: boolean };
   onPress?: () => void;
 }) {

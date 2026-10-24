@@ -8,4 +8,5 @@ Summary: Lets the user pick the Editorial or Native style at launch and get back
 
 ## Related
 - Page: [[Style Chooser]], [[Editorial Onboarding]], [[Editorial Home]], [[Native Home]]
+- Features: [[Light Mode]]
 - Bugs: none known

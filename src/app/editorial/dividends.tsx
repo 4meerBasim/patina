@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { memo, useCallback, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, type ColorValue } from 'react-native';
 
 import { Caption } from '@/components/editorial/caption';
 import { monthAbbrev } from '@/components/editorial/months';
@@ -18,7 +18,7 @@ import {
 
 const LABEL_INDICES = [0, 4, 8, 11];
 
-const Bar = memo(function Bar({ heightPct, color }: { heightPct: number; color: string }) {
+const Bar = memo(function Bar({ heightPct, color }: { heightPct: number; color: ColorValue }) {
   return <View style={[styles.bar, { height: `${heightPct}%`, backgroundColor: color }]} />;
 });
 
@@ -29,7 +29,7 @@ const Chart = memo(function Chart({
   summary,
 }: {
   data: DividendMonth[];
-  color: string;
+  color: ColorValue;
   lastLabel: string;
   summary: string;
 }) {

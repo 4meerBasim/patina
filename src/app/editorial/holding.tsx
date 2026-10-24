@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ColorValue } from 'react-native';
 import Svg, { Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { Caption } from '@/components/editorial/caption';
@@ -69,7 +69,7 @@ function splitFraction(formatted: string): [string, string] {
   return [formatted.slice(0, dot), formatted.slice(dot)];
 }
 
-type Row = { label: string; value: string; valueColor: string };
+type Row = { label: string; value: string; valueColor: ColorValue };
 
 export default function HoldingScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -183,7 +183,7 @@ export default function HoldingScreen() {
     : dayMonthYear(quoteDate);
   const [heroWhole, heroFraction] = splitFraction(money2(holding.value));
 
-  let heroChange: { text: string; color: string } | null = null;
+  let heroChange: { text: string; color: ColorValue } | null = null;
   if (!isManual && position?.unrealisedGain != null && position.unrealisedPercent != null) {
     const up = position.unrealisedGain >= 0;
     heroChange = {

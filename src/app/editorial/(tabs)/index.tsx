@@ -7,8 +7,7 @@ import {
   Text,
   View,
   type StyleProp,
-  type TextStyle,
-} from 'react-native';
+  type TextStyle, type ColorValue } from 'react-native';
 import Svg, { Defs, LinearGradient, Line, Path, Stop } from 'react-native-svg';
 
 import { Caption } from '@/components/editorial/caption';
@@ -128,7 +127,7 @@ const MovedRow = memo(function MovedRow({
 }: {
   label: string;
   value: string;
-  color: string;
+  color: ColorValue;
   isArabic: boolean;
 }) {
   return (
@@ -153,7 +152,7 @@ const MoverRow = memo(function MoverRow({
   name: string;
   ticker: string;
   value: string;
-  color: string;
+  color: ColorValue;
   isArabic: boolean;
   hasBorder: boolean;
   onPress: (id: string) => void;

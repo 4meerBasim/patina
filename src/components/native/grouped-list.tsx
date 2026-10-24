@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from 'react';
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle, type ColorValue } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 
@@ -19,7 +19,7 @@ export function RowSeparator({ inset }: { inset: number }) {
 type KeyValueRowProps = {
   label: string;
   value: string;
-  valueColor?: string;
+  valueColor?: ColorValue;
   hasSeparator: boolean;
 };
 

@@ -8,7 +8,7 @@ import {
   View,
   type StyleProp,
   type ViewStyle,
-} from 'react-native';
+ type ColorValue } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { Glass } from '@/components/native/glass';
@@ -25,7 +25,7 @@ const PACE_WORD: Record<GoalPace, string> = {
   'on-pace': 'On pace',
 };
 
-const PACE_COLOR: Record<GoalPace, string> = {
+const PACE_COLOR: Record<GoalPace, ColorValue> = {
   ahead: Colors.verdigris,
   behind: Colors.copper,
   'on-pace': Colors.stone,
@@ -65,7 +65,7 @@ function GoalCard({
   title: string;
   current: string;
   status: string;
-  statusColor: string;
+  statusColor: ColorValue;
   style?: StyleProp<ViewStyle>;
   onPress: () => void;
 }) {

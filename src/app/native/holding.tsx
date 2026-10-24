@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ColorValue } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { Glass } from '@/components/native/glass';
@@ -26,7 +26,7 @@ import {
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 
-type MetricRowData = { key: string; label: string; value: string; color: string };
+type MetricRowData = { key: string; label: string; value: string; color: ColorValue };
 
 function formatDate(iso: string): string {
   const [year, month, day] = iso.split('-');
